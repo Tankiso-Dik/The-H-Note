@@ -124,10 +124,59 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                     <span className="menu-item-text">Styles</span>
                     <span className="submenu-arrow">▶</span>
                 </div>
-                <div className="menu-item has-submenu">
+                <div
+                    className="menu-item has-submenu"
+                    onMouseEnter={(e) => {
+                        const submenu = e.currentTarget.querySelector('.insert-submenu');
+                        if (submenu) submenu.style.display = 'flex';
+                    }}
+                    onMouseLeave={(e) => {
+                        const submenu = e.currentTarget.querySelector('.insert-submenu');
+                        if (submenu) submenu.style.display = 'none';
+                    }}
+                >
                     <span className="menu-item-icon">➕</span>
                     <span className="menu-item-text">Insert</span>
                     <span className="submenu-arrow">▶</span>
+
+                    <div className="insert-submenu" style={{ display: 'none' }}>
+                        <div
+                            className="menu-item"
+                            onClick={() => {
+                                const url = prompt('Enter image URL:');
+                                if (url) {
+                                    editor?.chain().focus().setImage({ src: url }).run();
+                                    onClose();
+                                }
+                            }}
+                        >
+                            <span className="menu-item-icon">🔗</span>
+                            <span className="menu-item-text">Image from URL</span>
+                        </div>
+                        <div
+                            className="menu-item"
+                            onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = (e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (event) => {
+                                            editor?.chain().focus().setImage({ src: event.target.result }).run();
+                                            onClose();
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                };
+                                input.click();
+                            }}
+                        >
+                            <span className="menu-item-icon">📁</span>
+                            <span className="menu-item-text">Upload from PC</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -300,6 +349,31 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                 .submenu-arrow {
                     font-size: 10px;
                     color: #888;
+                }
+
+                .insert-submenu {
+                    position: absolute;
+                    left: 100%;
+                    top: 0;
+                    width: 200px;
+                    background: rgba(255, 255, 255, 0.9);
+                    backdrop-filter: blur(20px) saturate(180%);
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                    border-radius: 8px;
+                    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+                    padding: 6px;
+                    margin-left: 4px;
+                    flex-direction: column;
+                    z-index: 10000;
+                }
+
+                [data-theme="dark"] .insert-submenu {
+                    background: rgba(45, 45, 45, 0.9);
+                    border-color: rgba(255, 255, 255, 0.1);
+                }
+
+                .has-submenu {
+                    position: relative;
                 }
             `}</style>
         </div>

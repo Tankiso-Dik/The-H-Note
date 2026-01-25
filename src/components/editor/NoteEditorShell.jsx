@@ -26,6 +26,7 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { all, createLowlight } from 'lowlight';
 import { FontFamily } from '@tiptap/extension-font-family';
+import { Image } from '@tiptap/extension-image';
 import { TableNavigation } from './TableNavigation';
 import EditorRibbon from './EditorRibbon';
 
@@ -72,6 +73,10 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
             TableHeader,
             TableCell,
             TableNavigation,
+            Image.configure({
+                inline: true,
+                allowBase64: true,
+            }),
             CodeBlockLowlight.configure({
                 lowlight,
             }),

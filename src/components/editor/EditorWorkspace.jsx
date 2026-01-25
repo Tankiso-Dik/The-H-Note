@@ -287,6 +287,20 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     color: var(--code-syntax-function);
                 }
 
+                /* Image Styles */
+                .ProseMirror img {
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 4px;
+                    margin: 0.5rem 0;
+                    cursor: pointer;
+                }
+
+                .ProseMirror img.ProseMirror-selectednode {
+                    outline: 2px solid var(--color-accent);
+                    outline-offset: 2px;
+                }
+
                 .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
                     float: left;
