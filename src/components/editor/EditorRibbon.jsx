@@ -27,16 +27,57 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <RibbonGroup label="Font">
                 <div className="ribbon-row">
-                    <select className="ribbon-select font-family">
-                        <option>Calibri</option>
-                        <option>Arial</option>
-                        <option>Times New Roman</option>
+                    <select
+                        className="ribbon-select font-family"
+                        onChange={(e) => editor?.chain().focus().setFontFamily(e.target.value).run()}
+                        disabled={!editor}
+                    >
+                        <option value="Calibri, sans-serif">Calibri</option>
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                        <option value="Inter, sans-serif">Inter</option>
+                        <option value="Roboto, sans-serif">Roboto</option>
+                        <option value="'Open Sans', sans-serif">Open Sans</option>
+                        <option value="Lato, sans-serif">Lato</option>
+                        <option value="Montserrat, sans-serif">Montserrat</option>
+                        <option value="Poppins, sans-serif">Poppins</option>
+                        <option value="'Playfair Display', serif">Playfair Display</option>
+                        <option value="Merriweather, serif">Merriweather</option>
+                        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                        <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
                     </select>
-                    <select className="ribbon-select font-size">
-                        <option>11</option>
-                        <option>12</option>
-                        <option>14</option>
-                        <option>16</option>
+                    <select
+                        className="ribbon-select font-size"
+                        onChange={(e) => {
+                            const size = e.target.value;
+                            editor?.chain().focus().setMark('textStyle', { fontSize: `${size}pt` }).run();
+                        }}
+                        disabled={!editor}
+                    >
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="14">14</option>
+                        <option value="16">16</option>
+                        <option value="18">18</option>
+                        <option value="20">20</option>
+                        <option value="22">22</option>
+                        <option value="24">24</option>
+                        <option value="26">26</option>
+                        <option value="28">28</option>
+                        <option value="32">32</option>
+                        <option value="36">36</option>
+                        <option value="40">40</option>
+                        <option value="44">44</option>
+                        <option value="48">48</option>
+                        <option value="54">54</option>
+                        <option value="60">60</option>
+                        <option value="66">66</option>
+                        <option value="72">72</option>
                     </select>
                 </div>
                 <div className="ribbon-row">
@@ -147,6 +188,14 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                     >
                         <span className="icon">📊</span>
                         <span>Table</span>
+                    </button>
+                    <button
+                        className={`ribbon-button small ${editor?.isActive('codeBlock') ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                        title="Code Block"
+                    >
+                        <span className="icon">💻</span>
+                        <span>Code</span>
                     </button>
                 </div>
             </RibbonGroup>
@@ -319,9 +368,10 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                     border-radius: 2px;
                     background: var(--editor-ribbon-bg);
                     color: inherit;
+                    cursor: pointer;
                 }
 
-                .ribbon-select.font-family { width: 100px; }
+                .ribbon-select.font-family { width: 140px; }
                 .ribbon-select.font-size { width: 50px; }
 
                 .ribbon-grid {

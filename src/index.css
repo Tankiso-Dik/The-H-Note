@@ -15,6 +15,15 @@
   --editor-ribbon-bg: #FFFFFF;
   --editor-border: #D1D1D1;
 
+  /* Code Block Variables (Light) */
+  --code-block-bg: #F5F5F5;
+  --code-block-border: #D0D0D0;
+  --code-block-text: #2E3440;
+  --code-syntax-keyword: #0077AA;
+  --code-syntax-string: #50A14F;
+  --code-syntax-comment: #A0A1A7;
+  --code-syntax-function: #4078F2;
+
   /* Typography */
   --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --font-size-header: 14px;
@@ -32,6 +41,15 @@
   --editor-text-color: #E0E0E0;
   --editor-ribbon-bg: #1A1A1A;
   --editor-border: #444444;
+
+  /* Code Block Variables (Dark) */
+  --code-block-bg: #1E1E1E;
+  --code-block-border: #3E3E3E;
+  --code-block-text: #D4D4D4;
+  --code-syntax-keyword: #569CD6;
+  --code-syntax-string: #6A9955;
+  --code-syntax-comment: #6A9955;
+  --code-syntax-function: #DCDCAA;
 }
 
 * {

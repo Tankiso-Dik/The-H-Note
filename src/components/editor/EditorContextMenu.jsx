@@ -18,7 +18,9 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const windowHeight = window.innerHeight;
     const menuWidth = 240;
     const isTable = editor?.isActive('table');
-    const menuHeight = isTable ? 560 : 320;
+    // Base 320 + 40 (Code Block) + 8 (Separator) = 368
+    // Table adds more
+    const menuHeight = isTable ? 600 : 368;
 
     let posX = x;
     let posY = y;
@@ -33,6 +35,18 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             style={{ top: posY, left: posX }}
             onClick={(e) => e.stopPropagation()}
         >
+            <div className="menu-item-group">
+                <div
+                    className={`menu-item ${editor?.isActive('codeBlock') ? 'active' : ''}`}
+                    onClick={() => editor?.chain().focus().toggleCodeBlock().run() || onClose()}
+                >
+                    <span className="menu-item-icon">💻</span>
+                    <span className="menu-item-text">Code Block</span>
+                </div>
+            </div>
+
+            <div className="menu-separator" />
+
             <div className="menu-mini-toolbar">
                 <button
                     className={`mini-tool-btn ${editor?.isActive('bold') ? 'active' : ''}`}

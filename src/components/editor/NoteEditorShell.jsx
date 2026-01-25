@@ -23,7 +23,12 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { Placeholder } from '@tiptap/extension-placeholder';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { all, createLowlight } from 'lowlight';
+import { FontFamily } from '@tiptap/extension-font-family';
 import EditorRibbon from './EditorRibbon';
+
+const lowlight = createLowlight(all);
 import EditorWorkspace from './EditorWorkspace';
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
@@ -44,6 +49,9 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
             Underline,
             Strike,
             TextStyle,
+            FontFamily.configure({
+                types: ['textStyle'],
+            }),
             Color,
             Highlight.configure({ multicolor: true }),
             Heading.configure({ levels: [1, 2, 3] }),
@@ -61,6 +69,9 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
             TableRow,
             TableHeader,
             TableCell,
+            CodeBlockLowlight.configure({
+                lowlight,
+            }),
             Placeholder.configure({
                 placeholder: 'Start typing...',
             }),

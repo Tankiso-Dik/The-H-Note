@@ -227,6 +227,66 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     pointer-events: none;
                 }
 
+                /* Code Block Styles */
+                .ProseMirror pre {
+                    background-color: var(--code-block-bg);
+                    border: 1px solid var(--code-block-border);
+                    border-radius: 8px;
+                    padding: 16px;
+                    margin: 1rem 0;
+                    overflow-x: auto;
+                    font-family: 'Source Code Pro', 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: var(--code-block-text);
+                }
+
+                .ProseMirror pre code {
+                    background: none;
+                    padding: 0;
+                    border: none;
+                    font-size: inherit;
+                    color: inherit;
+                    font-family: inherit;
+                }
+
+                /* Syntax Highlighting */
+                .ProseMirror pre .hljs-keyword,
+                .ProseMirror pre .hljs-selector-tag,
+                .ProseMirror pre .hljs-literal,
+                .ProseMirror pre .hljs-section,
+                .ProseMirror pre .hljs-link {
+                    color: var(--code-syntax-keyword);
+                }
+
+                .ProseMirror pre .hljs-string,
+                .ProseMirror pre .hljs-title,
+                .ProseMirror pre .hljs-name,
+                .ProseMirror pre .hljs-type,
+                .ProseMirror pre .hljs-attribute,
+                .ProseMirror pre .hljs-symbol,
+                .ProseMirror pre .hljs-bullet,
+                .ProseMirror pre .hljs-addition,
+                .ProseMirror pre .hljs-variable,
+                .ProseMirror pre .hljs-template-tag,
+                .ProseMirror pre .hljs-template-variable {
+                    color: var(--code-syntax-string);
+                }
+
+                .ProseMirror pre .hljs-comment,
+                .ProseMirror pre .hljs-quote,
+                .ProseMirror pre .hljs-deletion,
+                .ProseMirror pre .hljs-meta {
+                    color: var(--code-syntax-comment);
+                }
+
+                .ProseMirror pre .hljs-function,
+                .ProseMirror pre .hljs-class,
+                .ProseMirror pre .hljs-title.class_,
+                .ProseMirror pre .hljs-title.function_ {
+                    color: var(--code-syntax-function);
+                }
+
                 .ProseMirror p.is-editor-empty:first-child::before {
                     content: attr(data-placeholder);
                     float: left;

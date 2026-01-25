@@ -20,6 +20,7 @@
     "@tiptap/extension-code-block-lowlight": "^3.17.1",
     "@tiptap/extension-color": "^3.17.1",
     "@tiptap/extension-document": "^3.17.1",
+    "@tiptap/extension-font-family": "^3.17.1",
     "@tiptap/extension-heading": "^3.17.1",
     "@tiptap/extension-highlight": "^3.17.1",
     "@tiptap/extension-history": "^3.17.1",
