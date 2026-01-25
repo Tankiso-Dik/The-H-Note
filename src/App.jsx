@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MainGrid from './components/MainGrid';
-import { initialFolders, initialNotes } from './data/mockData';
+import NoteEditorShell from './components/editor/NoteEditorShell';
+import useNotesStore from './store/useNotesStore';
 
 function App() {
-    const [selectedFolderId, setSelectedFolderId] = useState('folder-1'); // Default to first folder
-    const [folders, setFolders] = useState(initialFolders);
-    const [notes, setNotes] = useState(initialNotes);
+    const {
+        folders,
+        notes,
+        activeNoteId,
+        setActiveNoteId,
+        addFolder,
+        addNote,
+        updateFolder,
+        updateNote,
+        deleteFolder,
+        deleteNote
+    } = useNotesStore();
+
+    const [selectedFolderId, setSelectedFolderId] = useState('folder-1');
 
     // Renaming state
     const [renamingId, setRenamingId] = useState(null);
@@ -14,74 +26,80 @@ function App() {
     const currentFolder = folders.find(f => f.id === selectedFolderId);
     const currentNotes = notes.filter(n => n.folderId === selectedFolderId);
     const currentSubFolders = folders.filter(f => f.parentId === selectedFolderId);
+    const activeNote = notes.find(n => n.id === activeNoteId);
 
     const handleAddFolder = (name, parentId) => {
-        const newId = `folder-${Date.now()}`;
-        const newFolder = {
-            id: newId,
-            name,
-            parentId
-        };
-        setFolders([...folders, newFolder]);
-        setRenamingId(newId); // Trigger rename mode immediately
-        return newId;
+        const id = addFolder(name, parentId);
+        setRenamingId(id);
+        return id;
     };
 
     const handleAddNote = (title, folderId, isTemplate = false) => {
-        const newId = `note-${Date.now()}`;
-        const newNote = {
-            id: newId,
-            title,
-            folderId,
-            content: '',
-            isTemplate
-        };
-        setNotes([...notes, newNote]);
-        setRenamingId(newId); // Trigger rename mode immediately
-        return newId;
+        const id = addNote(title, folderId, isTemplate);
+        setRenamingId(id);
+        return id;
     };
 
     const handleRename = (id, newName) => {
-        setFolders(folders.map(f => f.id === id ? { ...f, name: newName } : f));
-        setNotes(notes.map(n => n.id === id ? { ...n, title: newName } : n));
+        updateFolder(id, { name: newName });
+        updateNote(id, { title: newName });
         setRenamingId(null);
     };
 
     const handleDelete = (id) => {
-        setFolders(folders.filter(f => f.id !== id));
-        setNotes(notes.filter(n => n.id !== id));
+        deleteFolder(id);
+        deleteNote(id);
     };
 
     const handleToggleTemplate = (id) => {
-        setNotes(notes.map(n => n.id === id ? { ...n, isTemplate: !n.isTemplate } : n));
+        const note = notes.find(n => n.id === id);
+        if (note) updateNote(id, { isTemplate: !note.isTemplate });
+    };
+
+    const handleUpdateNote = (id, updates) => {
+        updateNote(id, updates);
     };
 
     return (
         <div className="app-container">
-            <Sidebar
-                folders={folders}
-                selectedFolderId={selectedFolderId}
-                onSelectFolder={setSelectedFolderId}
-                onAddFolder={handleAddFolder}
-                renamingId={renamingId}
-                setRenamingId={setRenamingId}
-                onRename={handleRename}
-                onDelete={handleDelete}
-            />
-            <MainGrid
-                currentFolder={currentFolder}
-                allFolders={folders}
-                subFolders={currentSubFolders}
-                notes={currentNotes}
-                onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
-                onAddNote={(title, isTemplate) => handleAddNote(title, selectedFolderId, isTemplate)}
-                onNavigate={setSelectedFolderId}
-                renamingId={renamingId}
-                onRename={handleRename}
-                onDelete={handleDelete}
-                onToggleTemplate={handleToggleTemplate}
-                setRenamingId={setRenamingId}
-            />
+            {!activeNote && (
+                <Sidebar
+                    folders={folders}
+                    selectedFolderId={selectedFolderId}
+                    onSelectFolder={(id) => {
+                        setSelectedFolderId(id);
+                        setActiveNoteId(null); // Close editor when switching folders
+                    }}
+                    onAddFolder={handleAddFolder}
+                    renamingId={renamingId}
+                    setRenamingId={setRenamingId}
+                    onRename={handleRename}
+                    onDelete={handleDelete}
+                />
+            )}
+            {activeNote ? (
+                <NoteEditorShell
+                    note={activeNote}
+                    onUpdateNote={handleUpdateNote}
+                    onBack={() => setActiveNoteId(null)}
+                />
+            ) : (
+                <MainGrid
+                    currentFolder={currentFolder}
+                    allFolders={folders}
+                    subFolders={currentSubFolders}
+                    notes={currentNotes}
+                    onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
+                    onAddNote={(title, isTemplate) => handleAddNote(title, selectedFolderId, isTemplate)}
+                    onNavigate={setSelectedFolderId}
+                    onOpenNote={setActiveNoteId}
+                    renamingId={renamingId}
+                    onRename={handleRename}
+                    onDelete={handleDelete}
+                    onToggleTemplate={handleToggleTemplate}
+                    setRenamingId={setRenamingId}
+                />
+            )}
         </div>
     );
 }

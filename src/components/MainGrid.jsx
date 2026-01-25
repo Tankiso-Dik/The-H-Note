@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import ContextMenu from './ContextMenu';
 
-const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, onAddNote, onNavigate, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate }) => {
+const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate }) => {
     const [selection, setSelection] = useState([]);
 
     // Breadcrumb Logic
@@ -52,6 +52,12 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
         } else {
             setSelection([id]);
         }
+
+        // If it's a note, open it on click
+        const note = notes.find(n => n.id === id);
+        if (note && !multiSelect) {
+            onOpenNote(id);
+        }
     };
 
     // Clear selection when folder changes
@@ -84,7 +90,7 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
         const options = [];
 
         if (type === 'note') {
-            options.push({ label: 'Open', action: () => console.log("Open Note UI") });
+            options.push({ label: 'Open', action: () => onOpenNote(targetId) });
             options.push({ separator: true });
         }
 

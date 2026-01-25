@@ -7,23 +7,39 @@
   --hover-bg: #EDEDED;
   --selection-bg: #E9F5FF;
   --selection-border: #0078D4;
-  
+
+  /* Editor Variables (Light Default) */
+  --editor-workspace-bg: #F3F3F3;
+  --editor-page-bg: #FFFFFF;
+  --editor-text-color: #1A1A1A;
+  --editor-ribbon-bg: #FFFFFF;
+  --editor-border: #D1D1D1;
+
   /* Typography */
   --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   --font-size-header: 14px;
   --font-size-body: 12px;
-  
+
   /* Spacing & Sizes */
   --sidebar-width: 240px;
   --radius-main: 8px;
   --radius-button: 4px;
 }
 
+[data-theme="dark"] .note-editor-root {
+  --editor-workspace-bg: #202020;
+  --editor-page-bg: #000000;
+  --editor-text-color: #E0E0E0;
+  --editor-ribbon-bg: #1A1A1A;
+  --editor-border: #444444;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  user-select: none; /* Desktop app feel */
+  user-select: none;
+  /* Desktop app feel */
 }
 
 body {

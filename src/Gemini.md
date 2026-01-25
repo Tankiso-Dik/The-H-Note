@@ -1,166 +1,249 @@
+NOTE EDITOR SHELL (PHASE 1)
 
-# Gemini.md: Design Specification
+Context (Read Carefully):
+We already have a working notes application with:
 
-## 1. Design Principles
+Folder tree navigation
 
-* **Spatial Familiarity:** Users should intuitively understand the hierarchy based on Windows File Explorer mental models.
-* **Visual Softness:** Utilize rounded corners, subtle drop shadows, and layered translucency (Mica effect) to reduce visual fatigue.
-* **Interaction Intent:** Every hover and click should provide immediate, subtle visual feedback to confirm the system is listening.
-* **Information Density:** Maintain a "Balanced" density—spacious enough for touch/web but tight enough for power users.
+Note list / grid
 
----
+Note selection logic
 
-## 2. Visual Tone & Geometry
+State management already in place
 
-* **Typography:** Primary font is **Segoe UI Variable**.
-* *Headers:* 14px Semi-bold.
-* *Body/Labels:* 12px Regular.
+Do NOT refactor, redesign, or modify the existing navigation, folder system, or app structure.
 
+We are now moving on to a new, separate concern:
+building the visual shell for the NOTE EDITOR that appears when a note is opened.
 
-* **Corner Radii:** * Main Windows/Containers: `8px`.
-* Buttons/Hover States: `4px`.
+This task is only about the editor UI shell, not the rest of the app.
 
+🎯 Objective
 
-* **Color Palette (Light Mode Foundation):**
-* *Sidebar Background:* `#F3F3F3` (Subtle Grey).
-* *Main Grid Background:* `#FFFFFF` (Pure White).
-* *Accent Color:* `#0078D4` (Windows Blue) for active states.
-* *Border/Stroke:* `1px solid #E5E5E5`.
+Create a Microsoft Word–inspired editor UI shell that will be rendered inside the note view when a note is opened.
 
+This phase is strictly about:
 
-* **Shadows:** * *Context Menus:* `0px 8px 16px rgba(0,0,0,0.14)`.
+Layout
 
----
+Visual structure
 
-## 3. Layout Architecture
+Theming
 
-### Sidebar (Navigation Pane)
+Placeholder controls
 
-* **Width:** Fixed at `240px` (resizable up to `400px`).
-* **Structure:** Vertical list of folders.
-* **Hierarchy:** Nested folders use a `16px` indentation per level.
-* **Interactions:**
-* **Selection:** Clicking a folder highlights the row with a light-blue tint and a `3px` vertical blue "pill" on the far left.
-* **Chevron:** A small arrow (toggle) appears to the left of folders containing sub-folders.
-* **Right-Click:** Triggers "Rename" or "Delete" actions.
+⚠️ No real text editing logic yet. No TipTap initialization yet. No content handling yet.
 
+📌 Scope Rules (Very Important)
+You MAY:
 
+Create new editor-related components (e.g. NoteEditorShell, EditorRibbon, EditorWorkspace)
 
-### Main Content Grid
+Add CSS variables and editor-specific styles
 
-* **View Style:** Large Icon View.
-* **Card Dimensions:** `120px` x `140px`.
-* **Spacing:** `24px` gap between cards.
-* **Card Contents:**
-* *Folders:* Standard Windows-style folder icon (Yellow/Manila palette).
-* *Notes:* Document icon with a preview of the note title.
+Add placeholder buttons and UI controls
 
+Add a theme toggle for the editor
 
-* **Empty State:** When a folder is empty, display a centered, desaturated icon with the text "This folder is empty" in 14px grey text.
+You MUST NOT:
 
----
+Modify folder navigation
 
-## 4. Interaction Rules
+Modify note creation logic
 
-### Selection & Hover
+Rewrite global app layout
 
-* **Hover State:** Items (folders/notes) gain a light grey background (`#EDEDED`) and a subtle `1px` border.
-* **Selection State:** Item gains a light blue background (`#E9F5FF`) and a `1px` solid blue border (`#0078D4`).
-* **Multi-select:** (Standard Desktop) Holding `Ctrl` allows clicking multiple items; `Shift` allows range selection.
+Introduce TipTap logic
 
-### The Create Affordance (+)
+Enable typing, undo, formatting, or keyboard shortcuts
 
-* **Visual:** A floating or top-aligned `+ New` button.
-* **Interaction:** * **Hover:** Button expands slightly or deepens in color.
-* **Click/Hover Menu:** Opens a dropdown containing:
-1. **New Note** (Empty).
-2. **New Folder**.
-3. **Templates Section** (Divided by a horizontal rule).
+🧱 Phase 1 — Note Editor Architectural Shell (UI ONLY)
+1. Overall Layout (Editor Only)
 
+The editor UI is a vertical layout composed of:
 
+Quick Access Header (32px height)
 
+Undo / Redo icons (visual only)
 
-* **Template Logic:** Only templates created within the *current* active folder are visible in this menu.
+Note title (read-only display)
 
-### Editor Entry
+Ribbon Toolbar (100–120px height)
 
-* **Trigger:** Double-click on a Note card (Mobile/Touch: Single tap).
-* **Behavior:** The Main Grid is replaced by the Editor view.
-* **Navigation:** A "Breadcrumb" bar appears at the top (e.g., `Home > Projects > Ideas`) allowing the user to click "Projects" to return to the grid view.
+White background
 
----
+Grouped controls with vertical separators
 
-## 5. Conceptual Templates
+Workspace Area
 
-* **Creation:** Any note can be right-clicked and "Save as Template" selected.
-* **Scope:** The template is anchored to its parent folder.
-* **UX Flow:** If a user is in the "Meeting Notes" folder, the `+ New` menu will prioritize "Weekly Sync Template" if it was saved there previously.
+Grey background (#F3F3F3)
 
----
+Centers a white “Page” canvas
 
-## 6. Out of Scope (For Now)
+2. Ribbon UI Groups (Non-Functional)
 
-* Search bar functionality and UI.
-* Details Pane (Right-side metadata panel).
-* File transfer/Upload logic.
-* Rich text editor internal toolbar.
-* Dark Mode color mapping.
+Create visually accurate placeholder controls only.
 
-Single click: selects note
+Clipboard Group
 
-Double click: opens editor
+Cut
 
-Enter key: opens editor (accessibility + power users)
+Copy
 
-This mirrors Explorer and feels good on web
+Paste
 
-B. Sidebar “Home” is not special
+Font Group
 
-Add under Sidebar:
+Font family dropdown (mock)
 
-“Home is a default folder, not a privileged root.
-All folders are treated equally by the system.”
+Font size dropdown (mock)
 
-Create menu ordering (small UX win)
+Bold
 
-Right now templates are just a section.
+Italic
 
-Recommend:
+Underline
 
-New Note (Empty)
+Strikethrough
 
-——
+Text color
 
-Templates (folder-scoped)
+Highlight
 
-——
+Paragraph Group
 
-New Folder
+Bulleted list
 
-This subtly prioritizes writing over structure.
+Numbered list
 
-Context menu scope (note vs folder)
+Task list
 
-Add:
+Blockquote
 
-Folder context menu:
+Horizontal rule
 
-Rename
+Styles Group
 
-Delete
+Scrollable preset boxes:
 
-New Note
+Normal
 
-New Folder
+Heading 1
 
-Note context menu:
+Heading 2
 
-Open
+Heading 3
 
-Rename
+Each group must:
 
-Delete
+Be visually separated by a 1px divider
 
-Save as Template
+Have a label under the group (Word-style)
 
-This avoids ambiguity during build.
+3. Page Canvas (Document Area)
+
+The editor content area must resemble Microsoft Word:
+
+Width: 816px
+
+Padding: 96px
+
+Margin: 40px auto
+
+Background: white
+
+Shadow: 0px 2px 8px rgba(0,0,0,0.1)
+
+Centered within a grey workspace
+
+⚠️ This is a visual container only — no typing yet.
+
+4. Right-Click Context Menu (Mockup)
+
+Inside the editor page:
+
+Disable the browser’s default context menu
+
+Show a custom Windows-11-style menu
+
+Include:
+
+Mini toolbar (top row):
+
+Bold
+
+Italic
+
+Underline
+
+Highlight
+
+Menu items:
+
+Cut / Copy / Paste
+
+Styles ▶ (submenu)
+
+Insert ▶ (submenu)
+
+Clear formatting
+
+All actions are visual placeholders only.
+
+5. Theme System (Editor Only)
+
+Implement CSS variables to support instant color inversion:
+
+Light Mode
+
+Workspace: #F3F3F3
+
+Page: #FFFFFF
+
+Text: #1A1A1A
+
+Ribbon: #FFFFFF
+
+Dark / Inverted Mode
+
+Workspace: #202020
+
+Page: #000000
+
+Text: #E0E0E0
+
+Ribbon: #1A1A1A
+
+Theme toggle:
+
+Simple button in the ribbon
+
+Toggles data-theme="dark" on the editor root
+
+🚫 Explicitly Out of Scope (Do NOT Implement)
+
+TipTap editor instance
+
+Text input
+
+Cursor behavior
+
+Undo history
+
+Formatting logic
+
+Keyboard shortcuts
+
+Multi-page layout
+
+✅ Success Criteria
+
+At the end of this task:
+
+Opening a note shows a fully styled Word-like editor shell
+
+All buttons exist visually but do nothing
+
+The editor feels “real” even though it is non-functional
+
+No existing navigation or state logic is touched
