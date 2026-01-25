@@ -1,0 +1,46 @@
+:root {
+  /* Colors */
+  --bg-sidebar: #F3F3F3;
+  --bg-main: #FFFFFF;
+  --color-accent: #0078D4;
+  --border-color: #E5E5E5;
+  --hover-bg: #EDEDED;
+  --selection-bg: #E9F5FF;
+  --selection-border: #0078D4;
+  
+  /* Typography */
+  --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-size-header: 14px;
+  --font-size-body: 12px;
+  
+  /* Spacing & Sizes */
+  --sidebar-width: 240px;
+  --radius-main: 8px;
+  --radius-button: 4px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none; /* Desktop app feel */
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  background-color: var(--bg-main);
+  color: #000;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100%;
+}
+
+.app-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
