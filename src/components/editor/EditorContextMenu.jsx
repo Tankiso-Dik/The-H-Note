@@ -17,7 +17,8 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     const menuWidth = 240;
-    const menuHeight = 320;
+    const isTable = editor?.isActive('table');
+    const menuHeight = isTable ? 560 : 320;
 
     let posX = x;
     let posY = y;
@@ -124,6 +125,48 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                     <span className="menu-item-text">Clear formatting</span>
                 </div>
             </div>
+
+            {editor?.isActive('table') && (
+                <>
+                    <div className="menu-separator" />
+                    <div className="menu-item-group">
+                        <div className="menu-item" onClick={() => editor.chain().focus().addRowBefore().run() || onClose()}>
+                            <span className="menu-item-icon">➕⬆️</span>
+                            <span className="menu-item-text">Add Row Above</span>
+                        </div>
+                        <div className="menu-item" onClick={() => editor.chain().focus().addRowAfter().run() || onClose()}>
+                            <span className="menu-item-icon">➕⬇️</span>
+                            <span className="menu-item-text">Add Row Below</span>
+                        </div>
+                        <div className="menu-item" onClick={() => editor.chain().focus().deleteRow().run() || onClose()}>
+                            <span className="menu-item-icon">❌➖</span>
+                            <span className="menu-item-text">Delete Row</span>
+                        </div>
+                    </div>
+                    <div className="menu-separator" />
+                    <div className="menu-item-group">
+                        <div className="menu-item" onClick={() => editor.chain().focus().addColumnBefore().run() || onClose()}>
+                            <span className="menu-item-icon">➕⬅️</span>
+                            <span className="menu-item-text">Add Column Before</span>
+                        </div>
+                        <div className="menu-item" onClick={() => editor.chain().focus().addColumnAfter().run() || onClose()}>
+                            <span className="menu-item-icon">➕➡️</span>
+                            <span className="menu-item-text">Add Column After</span>
+                        </div>
+                        <div className="menu-item" onClick={() => editor.chain().focus().deleteColumn().run() || onClose()}>
+                            <span className="menu-item-icon">❌┃</span>
+                            <span className="menu-item-text">Delete Column</span>
+                        </div>
+                    </div>
+                    <div className="menu-separator" />
+                    <div className="menu-item-group">
+                        <div className="menu-item" onClick={() => editor.chain().focus().deleteTable().run() || onClose()}>
+                            <span className="menu-item-icon">🗑️</span>
+                            <span className="menu-item-text">Delete Table</span>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <style>{`
                 .win11-menu {
