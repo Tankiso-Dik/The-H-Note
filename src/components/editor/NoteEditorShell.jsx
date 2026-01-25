@@ -26,6 +26,7 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { all, createLowlight } from 'lowlight';
 import { FontFamily } from '@tiptap/extension-font-family';
+import { TableNavigation } from './TableNavigation';
 import EditorRibbon from './EditorRibbon';
 
 const lowlight = createLowlight(all);
@@ -64,11 +65,13 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
                 nested: true,
             }),
             Table.configure({
-                resizable: false, // Out of scope for Phase 5
+                resizable: false,
+                allowTableNodeSelection: true,
             }),
             TableRow,
             TableHeader,
             TableCell,
+            TableNavigation,
             CodeBlockLowlight.configure({
                 lowlight,
             }),

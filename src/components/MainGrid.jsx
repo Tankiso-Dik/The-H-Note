@@ -156,7 +156,11 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                                     onNavigate(folder.id);
                                 }
                             }}
-                            onContextMenu={(e) => handleCardClick(folder.id, false) || handleContextMenu(e, 'folder', folder.id)}
+                            onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleContextMenu(e, 'folder', folder.id);
+                            }}
                         />
                     ))}
                     {notes.map(note => (
@@ -172,7 +176,11 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                                 e.stopPropagation();
                                 handleCardClick(note.id, e.ctrlKey || e.metaKey);
                             }}
-                            onContextMenu={(e) => handleCardClick(note.id, false) || handleContextMenu(e, 'note', note.id)}
+                            onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleContextMenu(e, 'note', note.id);
+                            }}
                         />
                     ))}
 
@@ -203,7 +211,6 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                         { label: 'New Note', action: () => handleCreateAction('note') },
                         ...(localTemplates.length > 0 ? [
                             { separator: true },
-                            { label: 'Templates (Current Folder)', disabled: true },
                             ...localTemplates.map(t => ({
                                 label: t.title,
                                 action: () => handleCreateAction('note', t)
