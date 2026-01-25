@@ -202,6 +202,102 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <div className="ribbon-spacer" />
 
+            <RibbonGroup label="Export">
+                <div className="ribbon-column">
+                    <button
+                        className="ribbon-button large"
+                        onClick={(e) => {
+                            const dropdown = e.currentTarget.nextElementSibling;
+                            if (dropdown) {
+                                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                            }
+                        }}
+                        title="Export Note"
+                    >
+                        <span className="icon">📥</span>
+                        <span>Export</span>
+                    </button>
+                    <div className="export-dropdown" style={{ display: 'none' }}>
+                        <div
+                            className="export-option"
+                            onClick={() => {
+                                // Export as PDF (using print dialog)
+                                window.print();
+                            }}
+                        >
+                            📄 PDF
+                        </div>
+                        <div
+                            className="export-option"
+                            onClick={() => {
+                                // Export as Markdown
+                                const text = editor?.getText() || '';
+                                const blob = new Blob([text], { type: 'text/markdown' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'note.md';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                        >
+                            📝 Markdown
+                        </div>
+                        <div
+                            className="export-option"
+                            onClick={() => {
+                                // Export as HTML
+                                const html = editor?.getHTML() || '';
+                                const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Note Export</title>
+    <style>
+        body { font-family: Calibri, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+        img { max-width: 100%; }
+        pre { background: #f5f5f5; padding: 16px; border-radius: 8px; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        td, th { border: 1px solid #ddd; padding: 8px; }
+    </style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+                                const blob = new Blob([fullHtml], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'note.html';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                        >
+                            🌐 HTML
+                        </div>
+                        <div
+                            className="export-option"
+                            onClick={() => {
+                                // Export as Plain Text
+                                const text = editor?.getText() || '';
+                                const blob = new Blob([text], { type: 'text/plain' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'note.txt';
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                        >
+                            📃 Plain Text
+                        </div>
+                    </div>
+                </div>
+            </RibbonGroup>
+
+            <div className="ribbon-spacer" />
+
             <div className="ribbon-theme-toggle">
                 <button className="theme-toggle-btn" onClick={onToggleTheme}>
                     {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
@@ -451,6 +547,44 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
                 [data-theme="dark"] .theme-toggle-btn:hover {
                     background-color: #333;
+                }
+
+                .export-dropdown {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    margin-top: 4px;
+                    background: #FFFFFF;
+                    border: 1px solid var(--editor-border);
+                    border-radius: 8px;
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.14);
+                    padding: 4px 0;
+                    min-width: 160px;
+                    z-index: 1000;
+                }
+
+                [data-theme="dark"] .export-dropdown {
+                    background: #1A1A1A;
+                }
+
+                .export-option {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    color: var(--editor-text-color);
+                    transition: background 0.1s;
+                }
+
+                .export-option:hover {
+                    background-color: #f0f0f0;
+                }
+
+                [data-theme="dark"] .export-option:hover {
+                    background-color: #333;
+                }
+
+                .ribbon-column {
+                    position: relative;
                 }
             `}</style>
         </div>
