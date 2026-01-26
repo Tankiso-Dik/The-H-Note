@@ -31,6 +31,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                         value={editor?.getAttributes('textStyle').fontFamily || localStorage.getItem('editor-default-font') || "Calibri, sans-serif"}
                         onChange={(e) => {
                             const font = e.target.value;
+                            // Ensure editor is focused before applying to update stored marks for next input
                             editor?.chain().focus().setFontFamily(font).run();
                             localStorage.setItem('editor-default-font', font);
                         }}
@@ -57,6 +58,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                         value={editor?.getAttributes('textStyle').fontSize?.replace('pt', '') || localStorage.getItem('editor-default-font-size') || "11"}
                         onChange={(e) => {
                             const size = e.target.value;
+                            // Ensure editor is focused before applying to update stored marks for next input
                             editor?.chain().focus().setMark('textStyle', { fontSize: `${size}pt` }).run();
                             localStorage.setItem('editor-default-font-size', size);
                         }}
