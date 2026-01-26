@@ -116,6 +116,8 @@ function App() {
                     onDelete={handleDelete}
                     onToggleTemplate={handleToggleTemplate}
                     setRenamingId={setRenamingId}
+                    theme={theme}
+                    onToggleTheme={toggleTheme}
                 />
             )}
         </div>

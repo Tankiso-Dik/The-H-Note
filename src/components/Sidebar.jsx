@@ -79,13 +79,6 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
       <div className="sidebar-header">
         {/* Strict Requirement: "+ New" only creates top-level folder, no menu, immediate rename */}
         <CreateButton onCreate={() => onAddFolder('New Folder', null)} />
-        <button
-          className="theme-toggle-mini"
-          onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
       </div>
       <div className="sidebar-content">
         {rootFolders.map(folder => (

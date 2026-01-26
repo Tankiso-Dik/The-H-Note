@@ -42,7 +42,7 @@ const CreateButton = ({ onCreate }) => {
                 }
 
                 .create-btn {
-                    background-color: #FFFFFF;
+                    background-color: var(--input-bg);
                     border: 1px solid var(--border-color);
                     border-radius: 4px;
                     padding: 8px 16px;
@@ -54,15 +54,16 @@ const CreateButton = ({ onCreate }) => {
                     font-family: var(--font-family);
                     font-size: var(--font-size-body);
                     transition: background-color 0.1s, box-shadow 0.1s;
+                    color: var(--editor-text-color);
                 }
 
                 .create-btn:hover {
-                    background-color: #FBFBFB;
+                    background-color: var(--hover-bg);
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
 
                 .create-btn.active {
-                    background-color: #F5F5F5;
+                    background-color: var(--selection-bg);
                 }
 
                 .plus-icon {
@@ -77,7 +78,7 @@ const CreateButton = ({ onCreate }) => {
                     left: 0;
                     margin-top: 4px;
                     width: 200px;
-                    background: #FFFFFF;
+                    background: var(--input-bg);
                     border: 1px solid var(--border-color);
                     border-radius: 8px;
                     box-shadow: 0 8px 16px rgba(0,0,0,0.14);
@@ -90,7 +91,7 @@ const CreateButton = ({ onCreate }) => {
                     padding: 8px 12px;
                     font-size: var(--font-size-body);
                     cursor: pointer;
-                    color: #202020;
+                    color: var(--editor-text-color);
                     display: flex;
                     align-items: center;
                 }

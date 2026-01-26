@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import ContextMenu from './ContextMenu';
 
-const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate }) => {
+const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate, theme, onToggleTheme }) => {
     const [selection, setSelection] = useState([]);
 
     // Breadcrumb Logic
@@ -136,6 +136,16 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
 
                     {breadcrumbs.length === 0 && <span className="crumb active">Home</span>}
                 </div>
+
+                <div className="main-options">
+                    <button
+                        className="theme-toggle-grid"
+                        onClick={onToggleTheme}
+                        title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
+                </div>
             </div>
 
             <div className="grid-scroller" onClick={() => setSelection([])}>
@@ -235,7 +245,25 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                     border-bottom: 1px solid var(--border-color);
                     display: flex;
                     align-items: center;
+                    justify-content: space-between;
                     padding: 0 24px;
+                }
+                
+                .theme-toggle-grid {
+                    background: transparent;
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    padding: 6px 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    color: inherit;
+                }
+                
+                .theme-toggle-grid:hover {
+                    background-color: var(--hover-bg);
                 }
                 
                 .breadcrumb {
