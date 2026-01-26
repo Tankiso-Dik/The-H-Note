@@ -114,7 +114,7 @@ const Card = ({ type, title, isSelected, isRenaming, isTemplate, onRename, onCli
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap; 
-                    color: #202020;
+                    color: var(--editor-text-color);
                 }
 
                 .card-rename-input {

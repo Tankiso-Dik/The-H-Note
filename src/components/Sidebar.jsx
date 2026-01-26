@@ -151,7 +151,7 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
           height: 36px;
           cursor: pointer;
           position: relative;
-          color: #000;
+          color: var(--editor-text-color);
           font-size: var(--font-size-body);
           border-radius: 4px;
           padding-left: 12px;

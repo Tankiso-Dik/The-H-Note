@@ -243,7 +243,8 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                    align-items: center;
                    gap: 8px;
                    font-size: 14px;
-                   color: #606060;
+                   color: var(--editor-text-color);
+                   opacity: 0.7;
                 }
 
                 .crumb {
@@ -258,7 +259,8 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
 
                 .crumb.active {
                     font-weight: 600;
-                    color: #000;
+                    color: var(--editor-text-color);
+                    opacity: 1;
                     cursor: default;
                 }
                 
@@ -267,7 +269,8 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                 }
                 
                 .separator {
-                    color: #A0A0A0;
+                    color: var(--editor-text-color);
+                    opacity: 0.5;
                     font-size: 12px;
                 }
 
@@ -285,9 +288,9 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                 }
 
                 .create-tile {
-                    border: 1px dashed #C0C0C0;
-                    background-color: #FAFAFA;
-                    color: #606060;
+                    border: 1px dashed var(--border-color);
+                    background-color: rgba(0,0,0,0.02);
+                    color: var(--editor-text-color);
                     width: 120px;
                     height: 140px;
                     display: flex;
@@ -297,12 +300,14 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                     padding: 8px;
                     border-radius: var(--radius-button);
                     cursor: pointer;
+                    opacity: 0.7;
                 }
                 
                 .create-tile:hover {
                     border-color: var(--color-accent);
                     background-color: var(--selection-bg);
                     color: var(--color-accent);
+                    opacity: 1;
                 }
 
                 .create-icon {
