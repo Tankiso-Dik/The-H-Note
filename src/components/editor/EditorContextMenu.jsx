@@ -25,8 +25,25 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     let posX = x;
     let posY = y;
 
-    if (x + menuWidth > windowWidth) posX = x - menuWidth;
-    if (y + menuHeight > windowHeight) posY = y - menuHeight;
+    // If click is in the bottom 40% of the screen, spawn menu upwards
+    if (y > windowHeight * 0.6) {
+        posY = y - menuHeight;
+    }
+
+    // Ensure menu doesn't go off screen horizontally
+    if (posX + menuWidth > windowWidth) {
+        posX = windowWidth - menuWidth - 10; // 10px padding
+    }
+
+    // Ensure menu doesn't go off screen vertically (bottom edge)
+    if (posY + menuHeight > windowHeight) {
+        posY = windowHeight - menuHeight - 10;
+    }
+
+    // Ensure menu doesn't go off screen vertically (top edge)
+    if (posY < 10) {
+        posY = 10;
+    }
 
     return (
         <div
