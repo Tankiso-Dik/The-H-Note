@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import ContextMenu from './ContextMenu';
 
-const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate, theme, onToggleTheme }) => {
+const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate, theme, onToggleTheme }) => {
     const [selection, setSelection] = useState([]);
 
     // Breadcrumb Logic
@@ -112,10 +112,8 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
     };
 
     // Template filtering for "Create" menu
-    // "Templates (only templates from the current folder)"
-    // The current folders templates are notes inside `subFolders`? NO.
-    // Templates are notes in the CURRENT folder. So just filter `notes` (which are already filtered by App.jsx to be in current folder).
-    const localTemplates = notes.filter(n => n.isTemplate);
+    // Global templates - accessible from any folder
+    const globalTemplates = allNotes.filter(n => n.isTemplate);
 
     return (
         <div className="main-content">
@@ -224,9 +222,9 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
                     options={[
                         { label: 'New Folder', action: () => handleCreateAction('folder') },
                         { label: 'New Note', action: () => handleCreateAction('note') },
-                        ...(localTemplates.length > 0 ? [
+                        ...(globalTemplates.length > 0 ? [
                             { separator: true },
-                            ...localTemplates.map(t => ({
+                            ...globalTemplates.map(t => ({
                                 label: t.title,
                                 action: () => handleCreateAction('note', t)
                             }))

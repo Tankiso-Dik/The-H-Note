@@ -107,6 +107,7 @@ function App() {
                     allFolders={folders}
                     subFolders={currentSubFolders}
                     notes={currentNotes}
+                    allNotes={notes}
                     onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
                     onAddNote={(title, isTemplate, content) => handleAddNote(title, selectedFolderId, isTemplate, content)}
                     onNavigate={setSelectedFolderId}
