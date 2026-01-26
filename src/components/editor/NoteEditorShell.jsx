@@ -92,6 +92,17 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
                 onUpdateNote(note.id, { content: editor.getHTML() });
             }
         },
+        onCreate: ({ editor }) => {
+            const savedFont = localStorage.getItem('editor-default-font');
+            const savedFontSize = localStorage.getItem('editor-default-font-size');
+
+            if (savedFont) {
+                editor.chain().focus().setFontFamily(savedFont).run();
+            }
+            if (savedFontSize) {
+                editor.chain().focus().setMark('textStyle', { fontSize: `${savedFontSize}pt` }).run();
+            }
+        },
     }, [note?.id]); // Re-initialize or sync when note ID changes
 
     if (!note) return null;

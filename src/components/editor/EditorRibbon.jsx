@@ -29,7 +29,12 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                 <div className="ribbon-row">
                     <select
                         className="ribbon-select font-family"
-                        onChange={(e) => editor?.chain().focus().setFontFamily(e.target.value).run()}
+                        value={editor?.getAttributes('textStyle').fontFamily || localStorage.getItem('editor-default-font') || "Calibri, sans-serif"}
+                        onChange={(e) => {
+                            const font = e.target.value;
+                            editor?.chain().focus().setFontFamily(font).run();
+                            localStorage.setItem('editor-default-font', font);
+                        }}
                         disabled={!editor}
                     >
                         <option value="Calibri, sans-serif">Calibri</option>
@@ -50,9 +55,11 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                     </select>
                     <select
                         className="ribbon-select font-size"
+                        value={editor?.getAttributes('textStyle').fontSize?.replace('pt', '') || localStorage.getItem('editor-default-font-size') || "11"}
                         onChange={(e) => {
                             const size = e.target.value;
                             editor?.chain().focus().setMark('textStyle', { fontSize: `${size}pt` }).run();
+                            localStorage.setItem('editor-default-font-size', size);
                         }}
                         disabled={!editor}
                     >
