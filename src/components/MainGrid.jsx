@@ -30,10 +30,8 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
         if (type === 'folder') onAddFolder('New Folder');
         if (type === 'note') {
             if (template) {
-                // Should copy content, but for UI mock we just creating a new note with template logic
-                // In a real app we'd copy `template.content`.
-                // Requirement: "Create Note -> Templates"
-                onAddNote(`Copy of ${template.title}`, false);
+                // Pass template content to the new note
+                onAddNote(`Copy of ${template.title}`, false, template.content);
             } else {
                 onAddNote('New Note', false);
             }

@@ -140,12 +140,12 @@ const useNotesStoreFinal = create(
                     };
                 }),
 
-            addNote: (title, folderId, isTemplate = false) => {
+            addNote: (title, folderId, isTemplate = false, content = '') => {
                 const newNote = {
                     id: `note-${Date.now()}`,
                     title,
                     folderId,
-                    content: '',
+                    content,
                     isTemplate,
                 };
                 set((state) => ({ notes: [...state.notes, newNote] }));

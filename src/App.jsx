@@ -48,8 +48,8 @@ function App() {
         return id;
     };
 
-    const handleAddNote = (title, folderId, isTemplate = false) => {
-        const id = addNote(title, folderId, isTemplate);
+    const handleAddNote = (title, folderId, isTemplate = false, content = '') => {
+        const id = addNote(title, folderId, isTemplate, content);
         setRenamingId(id);
         return id;
     };
@@ -108,7 +108,7 @@ function App() {
                     subFolders={currentSubFolders}
                     notes={currentNotes}
                     onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
-                    onAddNote={(title, isTemplate) => handleAddNote(title, selectedFolderId, isTemplate)}
+                    onAddNote={(title, isTemplate, content) => handleAddNote(title, selectedFolderId, isTemplate, content)}
                     onNavigate={setSelectedFolderId}
                     onOpenNote={setActiveNoteId}
                     renamingId={renamingId}
