@@ -52,6 +52,15 @@ body[data-theme="dark"] {
   --input-border: #444444;
   --separator-color: #333333;
 
+  /* Global Colors (Dark Override) */
+  --bg-sidebar: #181818;
+  --bg-main: #121212;
+  --color-accent: #60CDFF;
+  --border-color: #333333;
+  --hover-bg: #2D2D2D;
+  --selection-bg: #264F78;
+  --selection-border: #60CDFF;
+
   /* Code Block Variables (Dark) */
   --code-block-bg: #1E1E1E;
   --code-block-border: #3E3E3E;

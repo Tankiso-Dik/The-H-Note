@@ -34,16 +34,7 @@ const lowlight = createLowlight(all);
 import EditorWorkspace from './EditorWorkspace';
 import { FontSize } from '../../extensions/FontSize';
 
-const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
-    const [theme, setTheme] = useState('light');
-
-    React.useEffect(() => {
-        document.body.setAttribute('data-theme', theme);
-    }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : 'light');
-    };
+const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) => {
 
     const editor = useEditor({
         extensions: [
@@ -116,7 +107,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
             <div className="editor-shell-container">
                 <EditorRibbon
                     editor={editor}
-                    onToggleTheme={toggleTheme}
+                    onToggleTheme={onToggleTheme}
                     theme={theme}
                     onBack={onBack}
                 />

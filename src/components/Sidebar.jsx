@@ -70,7 +70,7 @@ const SidebarItem = ({ folder, isSelected, isRenaming, setRenamingId, onSelect, 
   );
 };
 
-const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renamingId, setRenamingId, onRename, onDelete }) => {
+const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renamingId, setRenamingId, onRename, onDelete, theme, onToggleTheme }) => {
   // Flat list: Only top-level folders (parentId === null)
   const rootFolders = folders.filter(f => f.parentId === null);
 
@@ -79,6 +79,13 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
       <div className="sidebar-header">
         {/* Strict Requirement: "+ New" only creates top-level folder, no menu, immediate rename */}
         <CreateButton onCreate={() => onAddFolder('New Folder', null)} />
+        <button
+          className="theme-toggle-mini"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
       </div>
       <div className="sidebar-content">
         {rootFolders.map(folder => (
@@ -109,6 +116,27 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
 
         .sidebar-header {
           padding: 16px; 
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .theme-toggle-mini {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: inherit;
+        }
+
+        .theme-toggle-mini:hover {
+            background-color: var(--hover-bg);
         }
 
         .sidebar-content {

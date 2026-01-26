@@ -23,6 +23,20 @@ function App() {
     // Renaming state
     const [renamingId, setRenamingId] = useState(null);
 
+    // Theme state
+    const [theme, setTheme] = useState(() => {
+        return localStorage.getItem('app-theme') || 'light';
+    });
+
+    React.useEffect(() => {
+        document.body.setAttribute('data-theme', theme);
+        localStorage.setItem('app-theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
     const currentFolder = folders.find(f => f.id === selectedFolderId);
     const currentNotes = notes.filter(n => n.folderId === selectedFolderId);
     const currentSubFolders = folders.filter(f => f.parentId === selectedFolderId);
@@ -75,6 +89,8 @@ function App() {
                     setRenamingId={setRenamingId}
                     onRename={handleRename}
                     onDelete={handleDelete}
+                    theme={theme}
+                    onToggleTheme={toggleTheme}
                 />
             )}
             {activeNote ? (
@@ -82,6 +98,8 @@ function App() {
                     note={activeNote}
                     onUpdateNote={handleUpdateNote}
                     onBack={() => setActiveNoteId(null)}
+                    theme={theme}
+                    onToggleTheme={toggleTheme}
                 />
             ) : (
                 <MainGrid
