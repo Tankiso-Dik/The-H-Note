@@ -31,7 +31,14 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, onAddFolder, o
         if (type === 'note') {
             if (template) {
                 // Pass template content to the new note
-                onAddNote(`Copy of ${template.title}`, false, template.content);
+                let newTitle = template.title;
+                let counter = 1;
+                while (notes.some(n => n.title === newTitle)) {
+                    newTitle = `${template.title}-${counter}`;
+                    counter++;
+                }
+
+                onAddNote(newTitle, false, template.content);
             } else {
                 onAddNote('New Note', false);
             }
