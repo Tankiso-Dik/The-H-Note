@@ -32,6 +32,7 @@ import EditorRibbon from './EditorRibbon';
 
 const lowlight = createLowlight(all);
 import EditorWorkspace from './EditorWorkspace';
+import { FontSize } from '../../extensions/FontSize';
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
     const [theme, setTheme] = useState('light');
@@ -54,6 +55,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
             FontFamily.configure({
                 types: ['textStyle'],
             }),
+            FontSize,
             Color,
             Highlight.configure({ multicolor: true }),
             Heading.configure({ levels: [1, 2, 3] }),
