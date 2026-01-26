@@ -349,7 +349,7 @@ ${html}
                 }
 
                 .ribbon-back-btn:hover {
-                    background-color: rgba(0,0,0,0.05);
+                    background-color: var(--hover-bg);
                 }
 
                 [data-theme="dark"] .ribbon-back-btn:hover {
@@ -388,7 +388,7 @@ ${html}
 
                 .ribbon-separator {
                     width: 1px;
-                    background-color: #E5E5E5;
+                    background-color: var(--separator-color);
                     margin: 12px 4px;
                 }
 
@@ -417,11 +417,11 @@ ${html}
                 }
 
                 .ribbon-button:hover {
-                    background-color: #f0f0f0;
+                    background-color: var(--hover-bg);
                 }
 
                 [data-theme="dark"] .ribbon-button:hover {
-                    background-color: #333;
+                    background-color: rgba(255,255,255,0.1);
                 }
 
                 .ribbon-button.large {
@@ -452,7 +452,7 @@ ${html}
                 }
 
                 .ribbon-button-mini:hover {
-                    background-color: #f0f0f0;
+                    background-color: var(--hover-bg);
                 }
 
                 .ribbon-button-mini.active {
@@ -461,20 +461,20 @@ ${html}
                 }
 
                 [data-theme="dark"] .ribbon-button-mini:hover {
-                    background-color: #333;
+                    background-color: rgba(255,255,255,0.1);
                 }
 
                 [data-theme="dark"] .ribbon-button-mini.active {
-                    background-color: #333;
+                    background-color: rgba(255,255,255,0.15);
                     border-color: var(--color-accent);
                 }
 
                 .ribbon-select {
                     font-size: 11px;
                     padding: 2px;
-                    border: 1px solid #ddd;
+                    border: 1px solid var(--input-border);
                     border-radius: 2px;
-                    background: var(--editor-ribbon-bg);
+                    background: var(--input-bg);
                     color: inherit;
                     cursor: pointer;
                 }
@@ -498,12 +498,12 @@ ${html}
 
                 .style-box {
                     width: 70px;
-                    border: 1px solid #ddd;
+                    border: 1px solid var(--input-border);
                     border-radius: 4px;
                     display: flex;
                     flex-direction: column;
                     cursor: pointer;
-                    background: var(--editor-page-bg);
+                    background: var(--input-bg);
                 }
 
                 .style-box.active {
@@ -517,10 +517,8 @@ ${html}
                     align-items: center;
                     justify-content: center;
                     font-size: 14px;
-                    color: #333;
+                    color: var(--editor-text-color);
                 }
-
-                [data-theme="dark"] .style-preview { color: #E0E0E0; }
 
                 .style-preview.h1 { font-size: 18px; font-weight: bold; }
                 .style-preview.h2 { font-size: 16px; font-weight: bold; }
@@ -529,8 +527,9 @@ ${html}
                 .style-name {
                     font-size: 10px;
                     padding: 2px 4px;
-                    border-top: 1px solid #eee;
+                    border-top: 1px solid var(--separator-color);
                     text-align: center;
+                    color: var(--editor-text-color);
                 }
 
                 .ribbon-spacer {
@@ -554,11 +553,11 @@ ${html}
                 }
 
                 .theme-toggle-btn:hover {
-                    background-color: #f0f0f0;
+                    background-color: var(--hover-bg);
                 }
 
                 [data-theme="dark"] .theme-toggle-btn:hover {
-                    background-color: #333;
+                    background-color: rgba(255,255,255,0.1);
                 }
 
                 .export-dropdown {
@@ -566,17 +565,13 @@ ${html}
                     top: 100%;
                     left: 0;
                     margin-top: 4px;
-                    background: #FFFFFF;
+                    background: var(--editor-ribbon-bg);
                     border: 1px solid var(--editor-border);
                     border-radius: 8px;
                     box-shadow: 0 8px 16px rgba(0,0,0,0.14);
                     padding: 4px 0;
                     min-width: 160px;
                     z-index: 1000;
-                }
-
-                [data-theme="dark"] .export-dropdown {
-                    background: #1A1A1A;
                 }
 
                 .export-option {
@@ -588,11 +583,11 @@ ${html}
                 }
 
                 .export-option:hover {
-                    background-color: #f0f0f0;
+                    background-color: var(--hover-bg);
                 }
 
                 [data-theme="dark"] .export-option:hover {
-                    background-color: #333;
+                    background-color: rgba(255,255,255,0.1);
                 }
 
                 .ribbon-column {

@@ -104,7 +104,7 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                 .quick-separator {
                     width: 1px;
                     height: 16px;
-                    background-color: #ddd;
+                    background-color: var(--separator-color);
                 }
 
                 .note-title-display {
@@ -141,6 +141,7 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     font-family: Calibri, sans-serif;
                     font-size: 16px;
                     line-height: 1.5;
+                    color: var(--editor-text-color);
                 }
 
                 /* List Styles */

@@ -37,6 +37,10 @@ import { FontSize } from '../../extensions/FontSize';
 const NoteEditorShell = ({ note, onUpdateNote, onBack }) => {
     const [theme, setTheme] = useState('light');
 
+    React.useEffect(() => {
+        document.body.setAttribute('data-theme', theme);
+    }, [theme]);
+
     const toggleTheme = () => {
         setTheme(prev => prev === 'light' ? 'dark' : 'light');
     };

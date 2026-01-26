@@ -15,6 +15,11 @@
   --editor-ribbon-bg: #FFFFFF;
   --editor-border: #D1D1D1;
 
+  /* UI Components (Light) */
+  --input-bg: #FFFFFF;
+  --input-border: #DDDDDD;
+  --separator-color: #E5E5E5;
+
   /* Code Block Variables (Light) */
   --code-block-bg: #F5F5F5;
   --code-block-border: #D0D0D0;
@@ -35,12 +40,17 @@
   --radius-button: 4px;
 }
 
-[data-theme="dark"] .note-editor-root {
-  --editor-workspace-bg: #202020;
-  --editor-page-bg: #000000;
+body[data-theme="dark"] {
+  --editor-workspace-bg: #121212;
+  --editor-page-bg: #1E1E1E;
   --editor-text-color: #E0E0E0;
-  --editor-ribbon-bg: #1A1A1A;
-  --editor-border: #444444;
+  --editor-ribbon-bg: #181818;
+  --editor-border: #333333;
+
+  /* UI Components (Dark) */
+  --input-bg: #222222;
+  --input-border: #444444;
+  --separator-color: #333333;
 
   /* Code Block Variables (Dark) */
   --code-block-bg: #1E1E1E;
@@ -63,7 +73,7 @@
 body {
   font-family: var(--font-family);
   font-size: var(--font-size-body);
-  background-color: var(--bg-main);
+  background-color: var(--editor-workspace-bg);
   color: #000;
   overflow: hidden;
   height: 100vh;
