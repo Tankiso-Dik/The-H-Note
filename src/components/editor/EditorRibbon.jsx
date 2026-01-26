@@ -192,7 +192,15 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                         onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
                         title="Insert 3x3 Table"
                     >
-                        <span className="icon">📊</span>
+                        <span className="icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="3" y1="15" x2="21" y2="15"></line>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                                <line x1="15" y1="3" x2="15" y2="21"></line>
+                            </svg>
+                        </span>
                         <span>Table</span>
                     </button>
                     <button
@@ -498,7 +506,7 @@ ${html}
 
                 .style-box {
                     width: 70px;
-                    border: 1px solid var(--input-border);
+                    border: 1px solid transparent;
                     border-radius: 4px;
                     display: flex;
                     flex-direction: column;
@@ -507,8 +515,8 @@ ${html}
                 }
 
                 .style-box.active {
-                    border-color: var(--color-accent);
-                    outline: 1px solid var(--color-accent);
+                    border-color: black;
+                    outline: 1px solid black;
                 }
 
                 .style-preview {

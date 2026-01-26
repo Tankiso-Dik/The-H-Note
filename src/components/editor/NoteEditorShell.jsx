@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEditor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
@@ -35,6 +35,8 @@ import EditorWorkspace from './EditorWorkspace';
 import { FontSize } from '../../extensions/FontSize';
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) => {
+
+
 
     const editor = useEditor({
         extensions: [
@@ -99,6 +101,20 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
             }
         },
     }, [note?.id]); // Re-initialize or sync when note ID changes
+
+    useEffect(() => {
+        if (!editor) return;
+
+        const savedFont = localStorage.getItem('editor-default-font');
+        const savedFontSize = localStorage.getItem('editor-default-font-size');
+
+        if (savedFont) {
+            editor.chain().focus().setFontFamily(savedFont).run();
+        }
+        if (savedFontSize) {
+            editor.chain().focus().setMark('textStyle', { fontSize: `${savedFontSize}pt` }).run();
+        }
+    }, [editor, note?.id]);
 
     if (!note) return null;
 
