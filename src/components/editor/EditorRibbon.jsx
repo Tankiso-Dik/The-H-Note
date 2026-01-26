@@ -1,11 +1,10 @@
 import React from 'react';
 
-const RibbonGroup = ({ label, children }) => (
+const RibbonGroup = ({ children }) => (
     <div className="ribbon-group">
         <div className="ribbon-group-content">
             {children}
         </div>
-        <div className="ribbon-group-label">{label}</div>
     </div>
 );
 
@@ -25,7 +24,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <div className="ribbon-separator" />
 
-            <RibbonGroup label="Font">
+            <RibbonGroup>
                 <div className="ribbon-row">
                     <select
                         className="ribbon-select font-family"
@@ -123,7 +122,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <div className="ribbon-separator" />
 
-            <RibbonGroup label="Paragraph">
+            <RibbonGroup>
                 <div className="ribbon-grid">
                     <button
                         className={`ribbon-button-mini ${editor?.isActive('bulletList') ? 'active' : ''}`}
@@ -151,7 +150,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <div className="ribbon-separator" />
 
-            <RibbonGroup label="Styles">
+            <RibbonGroup>
                 <div className="ribbon-styles-container">
                     <div
                         className={`style-box ${editor?.isActive('paragraph') && !editor?.isActive('heading') ? 'active' : ''}`}
@@ -186,7 +185,7 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
 
             <div className="ribbon-separator" />
 
-            <RibbonGroup label="Insert">
+            <RibbonGroup>
                 <div className="ribbon-column">
                     <button
                         className="ribbon-button large"
@@ -207,9 +206,9 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                 </div>
             </RibbonGroup>
 
-            <div className="ribbon-spacer" />
+            <div className="ribbon-separator" />
 
-            <RibbonGroup label="Export">
+            <RibbonGroup>
                 <div className="ribbon-column">
                     <button
                         className="ribbon-button large"
@@ -320,6 +319,12 @@ ${html}
                     padding: 4px 12px;
                     align-items: stretch;
                     color: var(--editor-text-color);
+                    overflow-x: auto;
+                    scrollbar-width: none;
+                }
+                
+                .editor-ribbon::-webkit-scrollbar {
+                    display: none;
                 }
 
                 .ribbon-back-container {

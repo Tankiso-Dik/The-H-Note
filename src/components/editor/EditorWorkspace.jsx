@@ -35,7 +35,7 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     <button className="quick-action-btn" title="Save">💾</button>
                 </div>
                 <div className="note-title-display">
-                    {noteTitle || 'Untitled Note'} - The H-Note
+                    {noteTitle || 'Untitled Note'}
                 </div>
                 <div className="header-spacer" />
             </div>
