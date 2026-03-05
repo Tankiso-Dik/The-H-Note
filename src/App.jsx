@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import Sidebar from './components/Sidebar';
 import MainGrid from './components/MainGrid';
-import NoteEditorShell from './components/editor/NoteEditorShell';
 import {
     STORAGE_KEY,
     createExportBundle,
@@ -11,7 +10,43 @@ import {
     parseLegacyLocalStorage,
 } from './lib/importExport';
 
+const LazyNoteEditorShell = lazy(() => import('./components/editor/NoteEditorShell'));
+
+const CACHE_KEY = 'h-note-convex-cache-v1';
+const DRAFTS_KEY = 'h-note-note-drafts-v1';
+const DRAFT_SYNC_DELAY_MS = 1800;
+
 const createId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const safeParse = (raw, fallback) => {
+    if (!raw) {
+        return fallback;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return fallback;
+    }
+};
+
+const loadCachedBundle = () => {
+    const parsed = safeParse(localStorage.getItem(CACHE_KEY), null);
+    if (!parsed || !Array.isArray(parsed.folders) || !Array.isArray(parsed.notes)) {
+        return null;
+    }
+
+    return parsed;
+};
+
+const loadDraftMap = () => {
+    const parsed = safeParse(localStorage.getItem(DRAFTS_KEY), {});
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return {};
+    }
+
+    return parsed;
+};
 
 function App() {
     const data = useQuery('notes:getAll');
@@ -22,14 +57,19 @@ function App() {
     const deleteNote = useMutation('notes:deleteNote');
     const replaceAll = useMutation('notes:replaceAll');
 
-    const folders = data?.folders ?? [];
-    const notes = data?.notes ?? [];
+    const [cachedBundle, setCachedBundle] = useState(() => loadCachedBundle());
+    const [localDrafts, setLocalDrafts] = useState(() => loadDraftMap());
+
+    const effectiveData = data ?? cachedBundle;
+    const folders = effectiveData?.folders ?? [];
+    const notes = effectiveData?.notes ?? [];
 
     const [selectedFolderId, setSelectedFolderId] = useState('folder-1');
     const [activeNoteId, setActiveNoteId] = useState(null);
     const [renamingId, setRenamingId] = useState(null);
     const [dataStatus, setDataStatus] = useState('');
     const [isSlowLoad, setIsSlowLoad] = useState(false);
+    const [pendingFolders, setPendingFolders] = useState([]);
 
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('app-theme') || 'light';
@@ -37,11 +77,29 @@ function App() {
 
     const bootstrappedRef = useRef(false);
     const pendingContentSavesRef = useRef(new Map());
+    const notesRef = useRef(notes);
+
+    useEffect(() => {
+        notesRef.current = notes;
+    }, [notes]);
 
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
         localStorage.setItem('app-theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        if (data === undefined) {
+            return;
+        }
+
+        setCachedBundle(data);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    }, [data]);
+
+    useEffect(() => {
+        localStorage.setItem(DRAFTS_KEY, JSON.stringify(localDrafts));
+    }, [localDrafts]);
 
     useEffect(() => {
         if (bootstrappedRef.current || data === undefined) {
@@ -124,24 +182,49 @@ function App() {
         setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
     };
 
-    const currentFolder = folders.find((folder) => folder.id === selectedFolderId) ?? null;
-    const currentNotes = notes.filter((note) => note.folderId === selectedFolderId);
-    const currentSubFolders = folders.filter((folder) => folder.parentId === selectedFolderId);
-    const activeNote = notes.find((note) => note.id === activeNoteId) ?? null;
+    const clearDraft = (noteId) => {
+        setLocalDrafts((prev) => {
+            if (!(noteId in prev)) {
+                return prev;
+            }
+
+            const next = { ...prev };
+            delete next[noteId];
+            return next;
+        });
+    };
 
     const persistNote = async (note) => {
         await upsertNote({ note });
     };
 
+    const allFolders = [...folders, ...pendingFolders];
+    const pendingFolderCreations = pendingFolders.reduce((acc, folder) => {
+        acc[folder.id] = true;
+        return acc;
+    }, {});
+
+    const currentFolder = allFolders.find((folder) => folder.id === selectedFolderId) ?? null;
+    const currentNotes = notes.filter((note) => note.folderId === selectedFolderId);
+    const currentSubFolders = allFolders.filter((folder) => folder.parentId === selectedFolderId);
+
+    const activeNoteBase = notes.find((note) => note.id === activeNoteId) ?? null;
+    const activeDraft = activeNoteId ? localDrafts[activeNoteId] : undefined;
+    const activeNote =
+        activeNoteBase && typeof activeDraft === 'string'
+            ? { ...activeNoteBase, content: activeDraft }
+            : activeNoteBase;
+
     const handleAddFolder = (name, parentId) => {
         const id = createId('folder');
-        void upsertFolder({
-            folder: {
+        setPendingFolders((prev) => [
+            ...prev,
+            {
                 id,
                 name,
                 parentId: parentId ?? null,
             },
-        });
+        ]);
         setRenamingId(id);
         return id;
     };
@@ -165,8 +248,20 @@ function App() {
     };
 
     const handleRename = (id, newName) => {
+        const pendingFolder = pendingFolders.find((item) => item.id === id);
         const folder = folders.find((item) => item.id === id);
         const note = notes.find((item) => item.id === id);
+
+        if (pendingFolder) {
+            void upsertFolder({
+                folder: {
+                    id: pendingFolder.id,
+                    name: newName,
+                    parentId: pendingFolder.parentId,
+                },
+            });
+            setPendingFolders((prev) => prev.filter((item) => item.id !== id));
+        }
 
         if (folder) {
             void upsertFolder({
@@ -179,8 +274,10 @@ function App() {
         }
 
         if (note) {
+            const draftContent = localDrafts[note.id];
             void persistNote({
                 ...note,
+                content: typeof draftContent === 'string' ? draftContent : note.content,
                 title: newName,
             });
         }
@@ -189,8 +286,17 @@ function App() {
     };
 
     const handleDelete = (id) => {
+        const pendingFolder = pendingFolders.find((item) => item.id === id);
         const folder = folders.find((item) => item.id === id);
         const note = notes.find((item) => item.id === id);
+
+        if (pendingFolder) {
+            setPendingFolders((prev) => prev.filter((item) => item.id !== id));
+            if (renamingId === id) {
+                setRenamingId(null);
+            }
+            return;
+        }
 
         if (folder) {
             void deleteFolderRecursive({ folderId: folder.id }).then(() => {
@@ -205,12 +311,23 @@ function App() {
                 if (activeNoteId === note.id) {
                     setActiveNoteId(null);
                 }
+                clearDraft(note.id);
             });
         }
     };
 
+    const handleCancelRename = (id) => {
+        const isPendingFolder = Boolean(pendingFolderCreations[id]);
+
+        if (isPendingFolder) {
+            setPendingFolders((prev) => prev.filter((item) => item.id !== id));
+        }
+
+        setRenamingId(null);
+    };
+
     const handleToggleTemplate = (id) => {
-        const note = notes.find((n) => n.id === id);
+        const note = notes.find((item) => item.id === id);
         if (!note) {
             return;
         }
@@ -221,31 +338,74 @@ function App() {
         });
     };
 
+    const queueDeferredContentSave = (id, content) => {
+        setLocalDrafts((prev) => ({
+            ...prev,
+            [id]: content,
+        }));
+
+        const currentTimeout = pendingContentSavesRef.current.get(id);
+        if (currentTimeout) {
+            window.clearTimeout(currentTimeout);
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            const latestNote = notesRef.current.find((note) => note.id === id);
+            if (!latestNote) {
+                clearDraft(id);
+                pendingContentSavesRef.current.delete(id);
+                return;
+            }
+
+            const payload = {
+                ...latestNote,
+                content,
+            };
+
+            void persistNote(payload)
+                .then(() => {
+                    setLocalDrafts((prev) => {
+                        if (prev[id] !== content) {
+                            return prev;
+                        }
+
+                        const next = { ...prev };
+                        delete next[id];
+                        return next;
+                    });
+                })
+                .catch((error) => {
+                    console.error(error);
+                    setDataStatus('Sync issue: draft kept locally, retrying on next change.');
+                })
+                .finally(() => {
+                    pendingContentSavesRef.current.delete(id);
+                });
+        }, DRAFT_SYNC_DELAY_MS);
+
+        pendingContentSavesRef.current.set(id, timeoutId);
+    };
+
     const handleUpdateNote = (id, updates) => {
         const existing = notes.find((note) => note.id === id);
         if (!existing) {
             return;
         }
 
-        const merged = { ...existing, ...updates };
         const hasOnlyContentUpdate =
             Object.keys(updates).length === 1 && Object.prototype.hasOwnProperty.call(updates, 'content');
 
         if (hasOnlyContentUpdate) {
-            const currentTimeout = pendingContentSavesRef.current.get(id);
-            if (currentTimeout) {
-                window.clearTimeout(currentTimeout);
-            }
-
-            const timeoutId = window.setTimeout(() => {
-                void persistNote(merged);
-                pendingContentSavesRef.current.delete(id);
-            }, 300);
-
-            pendingContentSavesRef.current.set(id, timeoutId);
+            queueDeferredContentSave(id, updates.content);
             return;
         }
 
+        const draftContent = localDrafts[id];
+        const merged = {
+            ...existing,
+            ...(typeof draftContent === 'string' ? { content: draftContent } : {}),
+            ...updates,
+        };
         void persistNote(merged);
     };
 
@@ -261,6 +421,13 @@ function App() {
             folders: bundle.folders,
             notes: bundle.notes,
         });
+
+        setCachedBundle(bundle);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(bundle));
+        setLocalDrafts({});
+        setPendingFolders([]);
+        localStorage.setItem(DRAFTS_KEY, JSON.stringify({}));
+
         setSelectedFolderId(null);
         setActiveNoteId(null);
         setRenamingId(null);
@@ -294,7 +461,7 @@ function App() {
         }
     };
 
-    if (data === undefined) {
+    if (effectiveData === null) {
         return (
             <div
                 className="app-container"
@@ -322,7 +489,7 @@ function App() {
         <div className="app-container">
             {!activeNote && (
                 <Sidebar
-                    folders={folders}
+                    folders={allFolders}
                     selectedFolderId={selectedFolderId}
                     onSelectFolder={(id) => {
                         setSelectedFolderId(id);
@@ -332,6 +499,8 @@ function App() {
                     renamingId={renamingId}
                     setRenamingId={setRenamingId}
                     onRename={handleRename}
+                    onCancelRename={handleCancelRename}
+                    pendingFolderCreations={pendingFolderCreations}
                     onDelete={handleDelete}
                     onExportData={handleExportData}
                     onImportDataFile={handleImportDataFile}
@@ -340,17 +509,19 @@ function App() {
                 />
             )}
             {activeNote ? (
-                <NoteEditorShell
-                    note={activeNote}
-                    onUpdateNote={handleUpdateNote}
-                    onBack={() => setActiveNoteId(null)}
-                    theme={theme}
-                    onToggleTheme={toggleTheme}
-                />
+                <Suspense fallback={<div className="app-container" style={{ padding: 24 }}>Loading editor…</div>}>
+                    <LazyNoteEditorShell
+                        note={activeNote}
+                        onUpdateNote={handleUpdateNote}
+                        onBack={() => setActiveNoteId(null)}
+                        theme={theme}
+                        onToggleTheme={toggleTheme}
+                    />
+                </Suspense>
             ) : (
                 <MainGrid
                     currentFolder={currentFolder}
-                    allFolders={folders}
+                    allFolders={allFolders}
                     subFolders={currentSubFolders}
                     notes={currentNotes}
                     allNotes={notes}

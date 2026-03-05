@@ -1,9 +1,49 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const ContextMenu = ({ x, y, options, onClose }) => {
     const menuRef = useRef(null);
     const [activeSubmenu, setActiveSubmenu] = useState(null);
+    const [position, setPosition] = useState({ x, y });
+
+    useEffect(() => {
+        setPosition({ x, y });
+    }, [x, y]);
+
+    useLayoutEffect(() => {
+        if (!menuRef.current) {
+            return;
+        }
+
+        const padding = 8;
+        const rect = menuRef.current.getBoundingClientRect();
+
+        let nextX = x;
+        let nextY = y;
+
+        if (rect.right > window.innerWidth - padding) {
+            nextX = Math.max(padding, window.innerWidth - rect.width - padding);
+        }
+
+        if (rect.left < padding) {
+            nextX = padding;
+        }
+
+        if (rect.bottom > window.innerHeight - padding) {
+            nextY = Math.max(padding, window.innerHeight - rect.height - padding);
+        }
+
+        if (rect.top < padding) {
+            nextY = padding;
+        }
+
+        setPosition((prev) => {
+            if (prev.x === nextX && prev.y === nextY) {
+                return prev;
+            }
+            return { x: nextX, y: nextY };
+        });
+    }, [x, y]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -33,8 +73,8 @@ const ContextMenu = ({ x, y, options, onClose }) => {
             ref={menuRef}
             className="context-menu"
             style={{
-                top: y,
-                left: x
+                top: position.y,
+                left: position.x
             }}
             onClick={(e) => e.stopPropagation()}
         >
@@ -90,11 +130,13 @@ const ContextMenu = ({ x, y, options, onClose }) => {
             .context-menu {
                 position: fixed;
                 width: 160px;
-                background: #FFFFFF;
+                background: var(--input-bg);
                 border: 1px solid var(--border-color);
                 border-radius: 8px;
                 box-shadow: 0 8px 16px rgba(0,0,0,0.14);
                 padding: 4px 0;
+                max-height: min(70vh, 420px);
+                overflow-y: auto;
                 z-index: 1000;
                 animation: fadeIn 0.1s;
             }
@@ -103,7 +145,7 @@ const ContextMenu = ({ x, y, options, onClose }) => {
                 padding: 8px 12px;
                 font-size: var(--font-size-body);
                 cursor: pointer;
-                color: #202020;
+                color: var(--editor-text-color);
                 position: relative;
                 display: flex;
                 align-items: center;
@@ -125,7 +167,8 @@ const ContextMenu = ({ x, y, options, onClose }) => {
             }
 
             .disabled {
-                color: #A0A0A0;
+                color: var(--editor-text-color);
+                opacity: 0.5;
                 cursor: default;
             }
 
@@ -137,7 +180,8 @@ const ContextMenu = ({ x, y, options, onClose }) => {
                 position: absolute;
                 right: 8px;
                 font-size: 14px;
-                color: #606060;
+                color: var(--editor-text-color);
+                opacity: 0.8;
             }
 
             .submenu {
@@ -145,7 +189,7 @@ const ContextMenu = ({ x, y, options, onClose }) => {
                 left: 100%;
                 top: -4px;
                 width: 160px;
-                background: #FFFFFF;
+                background: var(--input-bg);
                 border: 1px solid var(--border-color);
                 border-radius: 8px;
                 box-shadow: 0 8px 16px rgba(0,0,0,0.14);

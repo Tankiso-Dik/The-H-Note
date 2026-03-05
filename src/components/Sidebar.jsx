@@ -1,10 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import CreateButton from './CreateButton';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from './ContextMenu';
+import CreateButton from './CreateButton';
 
-const SidebarItem = ({ folder, isSelected, isRenaming, setRenamingId, onSelect, onRename, onDelete }) => {
+const SidebarItem = ({
+  folder,
+  isSelected,
+  isRenaming,
+  isPendingCreation,
+  setRenamingId,
+  onSelect,
+  onRename,
+  onCancelRename,
+  onDelete,
+}) => {
   const [name, setName] = useState(folder.name);
   const inputRef = useRef(null);
+  const cancelReadyRef = useRef(!isPendingCreation);
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -13,15 +24,47 @@ const SidebarItem = ({ folder, isSelected, isRenaming, setRenamingId, onSelect, 
     }
   }, [isRenaming]);
 
+  useEffect(() => {
+    if (!isPendingCreation || !isRenaming) {
+      cancelReadyRef.current = true;
+      return;
+    }
+
+    cancelReadyRef.current = false;
+    const timerId = window.setTimeout(() => {
+      cancelReadyRef.current = true;
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isPendingCreation, isRenaming]);
+
   const handleSubmit = () => {
-    if (name.trim()) onRename(folder.id, name);
+    if (isPendingCreation && !cancelReadyRef.current) {
+      return;
+    }
+
+    const trimmed = name.trim();
+    if (!trimmed) {
+      onCancelRename(folder.id);
+      return;
+    }
+
+    if (trimmed === folder.name) {
+      onCancelRename(folder.id);
+      return;
+    }
+
+    onRename(folder.id, trimmed);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSubmit();
+    if (e.key === 'Enter') {
+      handleSubmit();
+    }
   };
 
-  // Context Menu state
   const [contextMenu, setContextMenu] = useState(null);
 
   const handleContextMenu = (e) => {
@@ -61,7 +104,7 @@ const SidebarItem = ({ folder, isSelected, isRenaming, setRenamingId, onSelect, 
           y={contextMenu.y}
           options={[
             { label: 'Rename', action: () => setRenamingId(folder.id) },
-            { label: 'Delete', action: () => onDelete(folder.id) }
+            { label: 'Delete', action: () => onDelete(folder.id) },
           ]}
           onClose={() => setContextMenu(null)}
         />
@@ -78,18 +121,23 @@ const Sidebar = ({
   renamingId,
   setRenamingId,
   onRename,
+  onCancelRename,
+  pendingFolderCreations,
   onDelete,
   onExportData,
   onImportDataFile,
   onImportFromLocalStorage,
   dataStatus,
 }) => {
-  // Flat list: Only top-level folders (parentId === null)
-  const rootFolders = folders.filter(f => f.parentId === null);
+  const rootFolders = folders.filter((folder) => folder.parentId === null);
+
+  const [plusMenu, setPlusMenu] = useState(null);
+  const plusAreaRef = useRef(null);
   const importInputRef = useRef(null);
 
-  const triggerImport = () => {
-    importInputRef.current?.click();
+  const openPlusMenu = (event) => {
+    event.stopPropagation();
+    setPlusMenu((prev) => (prev ? null : { open: true }));
   };
 
   const handleImportFile = (event) => {
@@ -100,45 +148,99 @@ const Sidebar = ({
     event.target.value = '';
   };
 
+  const plusOptions = useMemo(
+    () => [
+      { label: 'Export', action: onExportData },
+      { label: 'Import', action: () => importInputRef.current?.click() },
+      { label: 'Migrate', action: onImportFromLocalStorage },
+    ],
+    [onExportData, onImportFromLocalStorage]
+  );
+
+  useEffect(() => {
+    if (!plusMenu) {
+      return;
+    }
+
+    const handleOutsideClick = (event) => {
+      if (plusAreaRef.current && !plusAreaRef.current.contains(event.target)) {
+        setPlusMenu(null);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setPlusMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [plusMenu]);
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        {/* Strict Requirement: "+ New" only creates top-level folder, no menu, immediate rename */}
         <CreateButton onCreate={() => onAddFolder('New Folder', null)} />
-        <div className="data-actions">
-          <button className="data-btn" onClick={onExportData} title="Export notes and folders">
-            Export
-          </button>
-          <button className="data-btn" onClick={triggerImport} title="Import notes and folders">
-            Import
-          </button>
-          <button className="data-btn" onClick={onImportFromLocalStorage} title="Import from old localStorage key">
-            Migrate
-          </button>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept="application/json"
-            style={{ display: 'none' }}
-            onChange={handleImportFile}
-          />
-        </div>
       </div>
+
       <div className="sidebar-content">
-        {rootFolders.map(folder => (
+        {rootFolders.map((folder) => (
           <SidebarItem
             key={folder.id}
             folder={folder}
             isSelected={selectedFolderId === folder.id}
             isRenaming={renamingId === folder.id}
+            isPendingCreation={Boolean(pendingFolderCreations?.[folder.id])}
             setRenamingId={setRenamingId}
             onSelect={onSelectFolder}
             onRename={onRename}
+            onCancelRename={onCancelRename}
             onDelete={onDelete}
           />
         ))}
       </div>
-      {dataStatus ? <div className="data-status">{dataStatus}</div> : null}
+
+      <div className="sidebar-footer" ref={plusAreaRef}>
+        {dataStatus ? <div className="data-status">{dataStatus}</div> : null}
+        <button
+          className="sidebar-plus-btn"
+          title="Create and data options"
+          onClick={openPlusMenu}
+        >
+          +
+        </button>
+
+        {plusMenu ? (
+          <div className="sidebar-plus-menu" onClick={(event) => event.stopPropagation()}>
+            {plusOptions.map((option) => (
+              <button
+                key={option.label}
+                className="sidebar-plus-menu-item"
+                onClick={() => {
+                  option.action();
+                  setPlusMenu(null);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json"
+        style={{ display: 'none' }}
+        onChange={handleImportFile}
+      />
 
       <style>{`
         .sidebar {
@@ -148,52 +250,12 @@ const Sidebar = ({
           display: flex;
           flex-direction: column;
           height: 100%;
-          flex-shrink: 0; 
+          flex-shrink: 0;
         }
 
         .sidebar-header {
-          padding: 16px; 
-          display: flex;
-          flex-direction: column;
-          align-items: stretch;
-          gap: 8px;
-        }
-
-        .data-actions {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 6px;
-        }
-
-        .data-btn {
-          background: transparent;
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          padding: 6px 8px;
-          cursor: pointer;
-          font-size: 12px;
-          color: inherit;
-        }
-
-        .data-btn:hover {
-          background-color: var(--hover-bg);
-        }
-
-        .theme-toggle-mini {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: inherit;
-        }
-
-        .theme-toggle-mini:hover {
-            background-color: var(--hover-bg);
+          padding: 12px 10px 6px;
+          border-bottom: 1px solid var(--border-color);
         }
 
         .sidebar-content {
@@ -202,12 +264,67 @@ const Sidebar = ({
           padding-top: 8px;
         }
 
+        .sidebar-footer {
+          position: relative;
+          padding: 10px;
+          border-top: 1px solid var(--border-color);
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+        }
+
         .data-status {
-          min-height: 20px;
-          padding: 6px 12px 10px;
+          min-height: 16px;
           font-size: 12px;
           color: var(--editor-text-color);
-          opacity: 0.7;
+          opacity: 0.8;
+          line-height: 1.4;
+          word-break: break-word;
+        }
+
+        .sidebar-plus-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          border: 1px solid var(--border-color);
+          background-color: var(--input-bg);
+          color: var(--editor-text-color);
+          font-size: 22px;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .sidebar-plus-btn:hover {
+          background-color: var(--hover-bg);
+        }
+
+        .sidebar-plus-menu {
+          position: absolute;
+          left: 10px;
+          bottom: 50px;
+          width: 170px;
+          background: var(--input-bg);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.14);
+          z-index: 2000;
+          overflow: hidden;
+        }
+
+        .sidebar-plus-menu-item {
+          width: 100%;
+          text-align: left;
+          background: transparent;
+          border: 0;
+          color: var(--editor-text-color);
+          font-size: var(--font-size-body);
+          padding: 9px 12px;
+          cursor: pointer;
+        }
+
+        .sidebar-plus-menu-item:hover {
+          background: var(--hover-bg);
         }
 
         .folder-row {
@@ -263,6 +380,8 @@ const Sidebar = ({
           padding: 2px 4px;
           border-radius: 2px;
           min-width: 0;
+          color: var(--editor-text-color);
+          background-color: var(--input-bg);
         }
       `}</style>
     </div>
