@@ -29,6 +29,7 @@ function App() {
     const [activeNoteId, setActiveNoteId] = useState(null);
     const [renamingId, setRenamingId] = useState(null);
     const [dataStatus, setDataStatus] = useState('');
+    const [isSlowLoad, setIsSlowLoad] = useState(false);
 
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('app-theme') || 'light';
@@ -103,6 +104,21 @@ function App() {
             pendingContentSavesRef.current.clear();
         };
     }, []);
+
+    useEffect(() => {
+        if (data !== undefined) {
+            setIsSlowLoad(false);
+            return;
+        }
+
+        const timerId = window.setTimeout(() => {
+            setIsSlowLoad(true);
+        }, 2000);
+
+        return () => {
+            window.clearTimeout(timerId);
+        };
+    }, [data]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -279,7 +295,27 @@ function App() {
     };
 
     if (data === undefined) {
-        return <div className="app-container" />;
+        return (
+            <div
+                className="app-container"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 24,
+                    fontFamily: 'system-ui, sans-serif',
+                }}
+            >
+                <div>
+                    <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Loading notes…</div>
+                    <div style={{ opacity: 0.8 }}>
+                        {isSlowLoad
+                            ? 'Still connecting to Convex. Check VITE_CONVEX_URL and Convex deployment status.'
+                            : 'Connecting to Convex…'}
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
