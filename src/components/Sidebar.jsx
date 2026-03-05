@@ -70,15 +70,59 @@ const SidebarItem = ({ folder, isSelected, isRenaming, setRenamingId, onSelect, 
   );
 };
 
-const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renamingId, setRenamingId, onRename, onDelete, theme, onToggleTheme }) => {
+const Sidebar = ({
+  folders,
+  selectedFolderId,
+  onSelectFolder,
+  onAddFolder,
+  renamingId,
+  setRenamingId,
+  onRename,
+  onDelete,
+  onExportData,
+  onImportDataFile,
+  onImportFromLocalStorage,
+  dataStatus,
+}) => {
   // Flat list: Only top-level folders (parentId === null)
   const rootFolders = folders.filter(f => f.parentId === null);
+  const importInputRef = useRef(null);
+
+  const triggerImport = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFile = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onImportDataFile(file);
+    }
+    event.target.value = '';
+  };
 
   return (
     <div className="sidebar">
       <div className="sidebar-header">
         {/* Strict Requirement: "+ New" only creates top-level folder, no menu, immediate rename */}
         <CreateButton onCreate={() => onAddFolder('New Folder', null)} />
+        <div className="data-actions">
+          <button className="data-btn" onClick={onExportData} title="Export notes and folders">
+            Export
+          </button>
+          <button className="data-btn" onClick={triggerImport} title="Import notes and folders">
+            Import
+          </button>
+          <button className="data-btn" onClick={onImportFromLocalStorage} title="Import from old localStorage key">
+            Migrate
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            style={{ display: 'none' }}
+            onChange={handleImportFile}
+          />
+        </div>
       </div>
       <div className="sidebar-content">
         {rootFolders.map(folder => (
@@ -87,14 +131,14 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
             folder={folder}
             isSelected={selectedFolderId === folder.id}
             isRenaming={renamingId === folder.id}
-            setRenamingId={setRenamingId} // Pass down if needed, but we use it in SidebarItem via closure if we merge? 
-            // Wait, SidebarItem is outside. I need to pass setRenamingId to SidebarItem.
+            setRenamingId={setRenamingId}
             onSelect={onSelectFolder}
-            onRename={onRename} // This is for SUBMIT
+            onRename={onRename}
             onDelete={onDelete}
           />
         ))}
       </div>
+      {dataStatus ? <div className="data-status">{dataStatus}</div> : null}
 
       <style>{`
         .sidebar {
@@ -110,9 +154,29 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
         .sidebar-header {
           padding: 16px; 
           display: flex;
-          align-items: center;
-          justify-content: space-between;
+          flex-direction: column;
+          align-items: stretch;
           gap: 8px;
+        }
+
+        .data-actions {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
+        }
+
+        .data-btn {
+          background: transparent;
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          padding: 6px 8px;
+          cursor: pointer;
+          font-size: 12px;
+          color: inherit;
+        }
+
+        .data-btn:hover {
+          background-color: var(--hover-bg);
         }
 
         .theme-toggle-mini {
@@ -136,6 +200,14 @@ const Sidebar = ({ folders, selectedFolderId, onSelectFolder, onAddFolder, renam
           flex: 1;
           overflow-y: auto;
           padding-top: 8px;
+        }
+
+        .data-status {
+          min-height: 20px;
+          padding: 6px 12px 10px;
+          font-size: 12px;
+          color: var(--editor-text-color);
+          opacity: 0.7;
         }
 
         .folder-row {

@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "portless the-h-note vite",
+    "dev:direct": "vite",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -44,6 +47,7 @@
     "@tiptap/extension-underline": "^3.17.1",
     "@tiptap/react": "^3.17.1",
     "@tiptap/starter-kit": "^3.17.1",
+    "convex": "^1.32.0",
     "lowlight": "^3.3.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

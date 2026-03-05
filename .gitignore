@@ -1,3 +1,5 @@
 node_modules
 dist/
 vercel.json
+convex/_generated/
+.env.local
