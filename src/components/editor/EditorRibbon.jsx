@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { exportMarkdownFile, exportPdfDocument, exportPlainTextFile } from '../../lib/noteExport';
+import LinkEditorPopover from './LinkEditorPopover';
 
 const RibbonGroup = ({ children }) => (
     <div className="ribbon-group">
@@ -8,7 +10,110 @@ const RibbonGroup = ({ children }) => (
     </div>
 );
 
-const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
+const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
+    const [isExportOpen, setIsExportOpen] = useState(false);
+    const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+    const exportMenuRef = useRef(null);
+    const linkMenuRef = useRef(null);
+
+    useEffect(() => {
+        if (!isExportOpen) {
+            return;
+        }
+
+        const handleOutsideClick = (event) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+                setIsExportOpen(false);
+            }
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setIsExportOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [isExportOpen]);
+
+    useEffect(() => {
+        if (!isLinkEditorOpen) {
+            return;
+        }
+
+        const handleOutsideClick = (event) => {
+            if (linkMenuRef.current && !linkMenuRef.current.contains(event.target)) {
+                setIsLinkEditorOpen(false);
+            }
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setIsLinkEditorOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [isLinkEditorOpen]);
+
+    const exportOptions = useMemo(() => [
+        {
+            label: 'PDF',
+            icon: '📄',
+            action: () => {
+                exportPdfDocument({
+                    title: noteTitle || 'Untitled Note',
+                    bodyHtml: editor?.getHTML() || '',
+                });
+            },
+        },
+        {
+            label: 'Markdown',
+            icon: '📝',
+            action: () => {
+                exportMarkdownFile({
+                    title: noteTitle || 'Untitled Note',
+                    markdown: editor?.storage?.markdown?.getMarkdown?.() || '',
+                });
+            },
+        },
+        {
+            label: 'Plain Text',
+            icon: '📃',
+            action: () => {
+                exportPlainTextFile({
+                    title: noteTitle || 'Untitled Note',
+                    text: editor?.getText() || '',
+                });
+            },
+        },
+    ], [editor, noteTitle]);
+
+    const currentLinkUrl = editor?.getAttributes('link').href || '';
+
+    const applyLink = (url) => {
+        if (!url) {
+            editor?.chain().focus().unsetLink().run();
+            setIsLinkEditorOpen(false);
+            return;
+        }
+
+        editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        setIsLinkEditorOpen(false);
+    };
+
     return (
         <div className="editor-ribbon">
             <div className="ribbon-back-container">
@@ -110,6 +215,12 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                         disabled={!editor}
                     ><s>S</s></button>
                     <button
+                        className={`ribbon-button-mini ${editor?.isActive('code') ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().toggleCode().run()}
+                        disabled={!editor}
+                        title="Inline Code"
+                    >{'</>'}</button>
+                    <button
                         className={`ribbon-button-mini ${editor?.isActive('textStyle', { color: '#e91e63' }) ? 'active' : ''}`}
                         onClick={() => editor?.chain().focus().setColor('#e91e63').run()}
                         disabled={!editor}
@@ -141,7 +252,26 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
                         onClick={() => editor?.chain().focus().toggleTaskList().run()}
                         title="Task List"
                     >☑</button>
-                    <button className="ribbon-button-mini">"</button>
+                    <button
+                        className={`ribbon-button-mini ${editor?.isActive('blockquote') ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                        title="Blockquote"
+                    >"</button>
+                    <div className="ribbon-inline-popover" ref={linkMenuRef}>
+                        <button
+                            className={`ribbon-button-mini ${editor?.isActive('link') ? 'active' : ''}`}
+                            onClick={() => setIsLinkEditorOpen((prev) => !prev)}
+                            title="Link"
+                        >🔗</button>
+                        {isLinkEditorOpen ? (
+                            <LinkEditorPopover
+                                initialUrl={currentLinkUrl}
+                                onSubmit={applyLink}
+                                onRemove={() => applyLink('')}
+                                onClose={() => setIsLinkEditorOpen(false)}
+                            />
+                        ) : null}
+                    </div>
                     <button
                         className="ribbon-button-mini"
                         onClick={() => editor?.chain().focus().setHorizontalRule().run()}
@@ -219,96 +349,32 @@ const EditorRibbon = ({ editor, onToggleTheme, theme, onBack }) => {
             <div className="ribbon-separator" />
 
             <RibbonGroup>
-                <div className="ribbon-column">
+                <div className="ribbon-column export-group" ref={exportMenuRef}>
                     <button
                         className="ribbon-button large"
-                        onClick={(e) => {
-                            const dropdown = e.currentTarget.nextElementSibling;
-                            if (dropdown) {
-                                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-                            }
-                        }}
+                        onClick={() => setIsExportOpen((prev) => !prev)}
                         title="Export Note"
                     >
                         <span className="icon">📥</span>
                         <span>Export</span>
                     </button>
-                    <div className="export-dropdown" style={{ display: 'none' }}>
-                        <div
-                            className="export-option"
-                            onClick={() => {
-                                // Export as PDF (using print dialog)
-                                window.print();
-                            }}
-                        >
-                            📄 PDF
+                    {isExportOpen ? (
+                        <div className="export-dropdown">
+                            {exportOptions.map((option) => (
+                                <button
+                                    key={option.label}
+                                    className="export-option"
+                                    onClick={() => {
+                                        option.action();
+                                        setIsExportOpen(false);
+                                    }}
+                                >
+                                    <span>{option.icon}</span>
+                                    <span>{option.label}</span>
+                                </button>
+                            ))}
                         </div>
-                        <div
-                            className="export-option"
-                            onClick={() => {
-                                // Export as Markdown
-                                const text = editor?.getText() || '';
-                                const blob = new Blob([text], { type: 'text/markdown' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = 'note.md';
-                                a.click();
-                                URL.revokeObjectURL(url);
-                            }}
-                        >
-                            📝 Markdown
-                        </div>
-                        <div
-                            className="export-option"
-                            onClick={() => {
-                                // Export as HTML
-                                const html = editor?.getHTML() || '';
-                                const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Note Export</title>
-    <style>
-        body { font-family: Calibri, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
-        img { max-width: 100%; }
-        pre { background: #f5f5f5; padding: 16px; border-radius: 8px; overflow-x: auto; }
-        table { border-collapse: collapse; width: 100%; }
-        td, th { border: 1px solid #ddd; padding: 8px; }
-    </style>
-</head>
-<body>
-${html}
-</body>
-</html>`;
-                                const blob = new Blob([fullHtml], { type: 'text/html' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = 'note.html';
-                                a.click();
-                                URL.revokeObjectURL(url);
-                            }}
-                        >
-                            🌐 HTML
-                        </div>
-                        <div
-                            className="export-option"
-                            onClick={() => {
-                                // Export as Plain Text
-                                const text = editor?.getText() || '';
-                                const blob = new Blob([text], { type: 'text/plain' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = 'note.txt';
-                                a.click();
-                                URL.revokeObjectURL(url);
-                            }}
-                        >
-                            📃 Plain Text
-                        </div>
-                    </div>
+                    ) : null}
                 </div>
             </RibbonGroup>
 
@@ -585,11 +651,18 @@ ${html}
                 }
 
                 .export-option {
+                    width: 100%;
                     padding: 8px 12px;
                     cursor: pointer;
                     font-size: 12px;
                     color: var(--editor-text-color);
                     transition: background 0.1s;
+                    background: transparent;
+                    border: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    text-align: left;
                 }
 
                 .export-option:hover {

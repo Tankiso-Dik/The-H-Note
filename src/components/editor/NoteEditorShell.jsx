@@ -27,6 +27,10 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { all, createLowlight } from 'lowlight';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { Image } from '@tiptap/extension-image';
+import { Link } from '@tiptap/extension-link';
+import { Code } from '@tiptap/extension-code';
+import { Blockquote } from '@tiptap/extension-blockquote';
+import { Markdown } from 'tiptap-markdown';
 import { TableNavigation } from './TableNavigation';
 import EditorRibbon from './EditorRibbon';
 
@@ -55,6 +59,13 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
             FontSize,
             Color,
             Highlight.configure({ multicolor: true }),
+            Code,
+            Link.configure({
+                openOnClick: false,
+                autolink: true,
+                defaultProtocol: 'https',
+            }),
+            Blockquote,
             Heading.configure({ levels: [1, 2, 3] }),
             HorizontalRule,
             BulletList,
@@ -81,6 +92,11 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
             }),
             Placeholder.configure({
                 placeholder: 'Start typing...',
+            }),
+            Markdown.configure({
+                html: true,
+                transformCopiedText: false,
+                transformPastedText: false,
             }),
         ],
         content: note ? note.content : '',
@@ -123,6 +139,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
             <div className="editor-shell-container">
                 <EditorRibbon
                     editor={editor}
+                    noteTitle={note.title}
                     onToggleTheme={onToggleTheme}
                     theme={theme}
                     onBack={onBack}
@@ -130,7 +147,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
                 <EditorWorkspace
                     editor={editor}
                     noteTitle={note.title}
-                    onBack={onBack}
+                    onRenameTitle={(title) => onUpdateNote(note.id, { title })}
                 />
             </div>
 

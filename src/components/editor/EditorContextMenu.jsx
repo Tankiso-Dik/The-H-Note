@@ -1,7 +1,26 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import LinkEditorPopover from './LinkEditorPopover';
 
 const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const menuRef = useRef(null);
+    const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+    const currentLinkUrl = editor?.getAttributes('link').href || '';
+
+    const applyLink = (url) => {
+        if (!url) {
+            editor?.chain().focus().unsetLink().run();
+            setIsLinkEditorOpen(false);
+            return;
+        }
+
+        editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        setIsLinkEditorOpen(false);
+    };
+
+    const runAndClose = (command) => {
+        command?.();
+        onClose();
+    };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -18,9 +37,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const windowHeight = window.innerHeight;
     const menuWidth = 240;
     const isTable = editor?.isActive('table');
-    // Base 320 + 40 (Code Block) + 8 (Separator) = 368
-    // Table adds more
-    const menuHeight = isTable ? 600 : 368;
+    const menuHeight = isTable ? 560 : 420;
 
     let posX = x;
     let posY = y;
@@ -55,7 +72,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className={`menu-item ${editor?.isActive('codeBlock') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleCodeBlock().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleCodeBlock().run())}
                 >
                     <span className="menu-item-icon">💻</span>
                     <span className="menu-item-text">Code Block</span>
@@ -67,22 +84,27 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-mini-toolbar">
                 <button
                     className={`mini-tool-btn ${editor?.isActive('bold') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleBold().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBold().run())}
                     title="Bold"
                 ><b>B</b></button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('italic') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleItalic().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleItalic().run())}
                     title="Italic"
                 ><i>I</i></button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('underline') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleUnderline().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleUnderline().run())}
                     title="Underline"
                 ><u>U</u></button>
                 <button
+                    className={`mini-tool-btn ${editor?.isActive('code') ? 'active' : ''}`}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleCode().run())}
+                    title="Inline Code"
+                >{'</>'}</button>
+                <button
                     className={`mini-tool-btn ${editor?.isActive('highlight') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleHighlight({ color: '#ffeb3b' }).run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleHighlight({ color: '#ffeb3b' }).run())}
                     title="Highlight"
                 >🖍️</button>
             </div>
@@ -90,20 +112,13 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-separator" />
 
             <div className="menu-item-group">
-                <div className="menu-item">
-                    <span className="menu-item-icon">✂️</span>
-                    <span className="menu-item-text">Cut</span>
-                    <span className="menu-item-shortcut">Ctrl+X</span>
-                </div>
-                <div className="menu-item">
-                    <span className="menu-item-icon">📄</span>
-                    <span className="menu-item-text">Copy</span>
-                    <span className="menu-item-shortcut">Ctrl+C</span>
-                </div>
-                <div className="menu-item">
-                    <span className="menu-item-icon">📋</span>
-                    <span className="menu-item-text">Paste</span>
-                    <span className="menu-item-shortcut">Ctrl+V</span>
+                <div
+                    className="menu-item"
+                    onClick={() => runAndClose(() => editor?.chain().focus().selectAll().run())}
+                >
+                    <span className="menu-item-icon">⌘</span>
+                    <span className="menu-item-text">Select All</span>
+                    <span className="menu-item-shortcut">Ctrl+A</span>
                 </div>
             </div>
 
@@ -112,24 +127,49 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className={`menu-item ${editor?.isActive('bulletList') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleBulletList().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBulletList().run())}
                 >
                     <span className="menu-item-icon">•</span>
                     <span className="menu-item-text">Bullet List</span>
                 </div>
                 <div
                     className={`menu-item ${editor?.isActive('orderedList') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleOrderedList().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleOrderedList().run())}
                 >
                     <span className="menu-item-icon">1.</span>
                     <span className="menu-item-text">Numbered List</span>
                 </div>
                 <div
                     className={`menu-item ${editor?.isActive('taskList') ? 'active' : ''}`}
-                    onClick={() => editor?.chain().focus().toggleTaskList().run() || onClose()}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleTaskList().run())}
                 >
                     <span className="menu-item-icon">☑</span>
                     <span className="menu-item-text">Task List</span>
+                </div>
+                <div
+                    className={`menu-item ${editor?.isActive('blockquote') ? 'active' : ''}`}
+                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBlockquote().run())}
+                >
+                    <span className="menu-item-icon">❝</span>
+                    <span className="menu-item-text">Blockquote</span>
+                </div>
+                <div className="menu-item-with-popover">
+                    <div
+                        className={`menu-item ${editor?.isActive('link') ? 'active' : ''}`}
+                        onClick={() => setIsLinkEditorOpen((prev) => !prev)}
+                    >
+                        <span className="menu-item-icon">🔗</span>
+                        <span className="menu-item-text">{editor?.isActive('link') ? 'Edit Link' : 'Add Link'}</span>
+                    </div>
+                    {isLinkEditorOpen ? (
+                        <LinkEditorPopover
+                            compact
+                            initialUrl={currentLinkUrl}
+                            onSubmit={applyLink}
+                            onRemove={() => applyLink('')}
+                            onClose={() => setIsLinkEditorOpen(false)}
+                        />
+                    ) : null}
                 </div>
             </div>
 
@@ -277,7 +317,10 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-separator" />
 
             <div className="menu-item-group">
-                <div className="menu-item">
+                <div
+                    className="menu-item"
+                    onClick={() => runAndClose(() => editor?.chain().focus().unsetAllMarks().clearNodes().run())}
+                >
                     <span className="menu-item-icon">🧹</span>
                     <span className="menu-item-text">Clear formatting</span>
                 </div>
@@ -287,37 +330,37 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                 <>
                     <div className="menu-separator" />
                     <div className="menu-item-group">
-                        <div className="menu-item" onClick={() => editor.chain().focus().addRowBefore().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().addRowBefore().run())}>
                             <span className="menu-item-icon">➕⬆️</span>
                             <span className="menu-item-text">Add Row Above</span>
                         </div>
-                        <div className="menu-item" onClick={() => editor.chain().focus().addRowAfter().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().addRowAfter().run())}>
                             <span className="menu-item-icon">➕⬇️</span>
                             <span className="menu-item-text">Add Row Below</span>
                         </div>
-                        <div className="menu-item" onClick={() => editor.chain().focus().deleteRow().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().deleteRow().run())}>
                             <span className="menu-item-icon">❌➖</span>
                             <span className="menu-item-text">Delete Row</span>
                         </div>
                     </div>
                     <div className="menu-separator" />
                     <div className="menu-item-group">
-                        <div className="menu-item" onClick={() => editor.chain().focus().addColumnBefore().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().addColumnBefore().run())}>
                             <span className="menu-item-icon">➕⬅️</span>
                             <span className="menu-item-text">Add Column Before</span>
                         </div>
-                        <div className="menu-item" onClick={() => editor.chain().focus().addColumnAfter().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().addColumnAfter().run())}>
                             <span className="menu-item-icon">➕➡️</span>
                             <span className="menu-item-text">Add Column After</span>
                         </div>
-                        <div className="menu-item" onClick={() => editor.chain().focus().deleteColumn().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().deleteColumn().run())}>
                             <span className="menu-item-icon">❌┃</span>
                             <span className="menu-item-text">Delete Column</span>
                         </div>
                     </div>
                     <div className="menu-separator" />
                     <div className="menu-item-group">
-                        <div className="menu-item" onClick={() => editor.chain().focus().deleteTable().run() || onClose()}>
+                        <div className="menu-item" onClick={() => runAndClose(() => editor.chain().focus().deleteTable().run())}>
                             <span className="menu-item-icon">🗑️</span>
                             <span className="menu-item-text">Delete Table</span>
                         </div>
@@ -414,6 +457,10 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                     cursor: pointer;
                     gap: 12px;
                     transition: background 0.1s;
+                }
+
+                .menu-item-with-popover {
+                    position: relative;
                 }
 
                 .menu-item:hover {

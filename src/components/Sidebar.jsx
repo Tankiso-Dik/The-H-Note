@@ -138,7 +138,6 @@ const Sidebar = ({
   onReorderFolders,
   onExportData,
   onImportDataFile,
-  onImportFromLocalStorage,
   dataStatus,
 }) => {
   const rootFolders = folders.filter((folder) => folder.parentId === null);
@@ -162,11 +161,10 @@ const Sidebar = ({
 
   const plusOptions = useMemo(
     () => [
-      { label: 'Export', action: onExportData },
-      { label: 'Import', action: () => importInputRef.current?.click() },
-      { label: 'Migrate', action: onImportFromLocalStorage },
+      { label: 'Import JSON', action: () => importInputRef.current?.click() },
+      { label: 'Export JSON', action: onExportData },
     ],
-    [onExportData, onImportFromLocalStorage]
+    [onExportData]
   );
 
   useEffect(() => {
@@ -297,14 +295,15 @@ const Sidebar = ({
         {dataStatus ? <div className="data-status">{dataStatus}</div> : null}
         <button
           className="sidebar-plus-btn"
-          title="Create and data options"
+          title="Data options"
           onClick={openPlusMenu}
         >
-          +
+          Data
         </button>
 
         {plusMenu ? (
           <div className="sidebar-plus-menu" onClick={(event) => event.stopPropagation()}>
+            <div className="sidebar-plus-menu-label">Data</div>
             {plusOptions.map((option) => (
               <button
                 key={option.label}
@@ -362,24 +361,26 @@ const Sidebar = ({
         }
 
         .data-status {
-          min-height: 16px;
           font-size: 12px;
           color: var(--editor-text-color);
           opacity: 0.8;
           line-height: 1.4;
           word-break: break-word;
+          padding: 0 2px;
         }
 
         .sidebar-plus-btn {
-          width: 34px;
+          min-width: 64px;
           height: 34px;
           border-radius: 999px;
           border: 1px solid var(--border-color);
           background-color: var(--input-bg);
           color: var(--editor-text-color);
-          font-size: 22px;
+          font-size: 13px;
+          font-weight: 600;
           line-height: 1;
           cursor: pointer;
+          padding: 0 14px;
         }
 
         .sidebar-plus-btn:hover {
@@ -390,13 +391,23 @@ const Sidebar = ({
           position: absolute;
           left: 10px;
           bottom: 50px;
-          width: 170px;
+          width: 190px;
           background: var(--input-bg);
           border: 1px solid var(--border-color);
           border-radius: 8px;
           box-shadow: 0 8px 16px rgba(0,0,0,0.14);
           z-index: 2000;
           overflow: hidden;
+        }
+
+        .sidebar-plus-menu-label {
+          padding: 9px 12px 6px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--editor-text-color);
+          opacity: 0.6;
         }
 
         .sidebar-plus-menu-item {

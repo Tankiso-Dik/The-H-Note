@@ -6,9 +6,10 @@ const CreateButton = ({ onCreate }) => {
             <button
                 className="create-btn"
                 onClick={onCreate}
+                title="Create a new folder"
             >
                 <span className="plus-icon">+</span>
-                <span className="btn-text">New</span>
+                <span className="btn-text">New Folder</span>
             </button>
 
             <style>{`

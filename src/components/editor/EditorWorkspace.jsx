@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EditorContent } from '@tiptap/react';
 import EditorContextMenu from './EditorContextMenu';
 
-const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
+const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
     const [contextMenu, setContextMenu] = useState(null);
+    const [draftTitle, setDraftTitle] = useState(noteTitle || '');
+    const titleInputRef = useRef(null);
+
+    useEffect(() => {
+        setDraftTitle(noteTitle || '');
+    }, [noteTitle]);
 
     const handleContextMenu = (e) => {
         e.preventDefault();
@@ -15,6 +21,19 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
 
     const closeContextMenu = () => {
         setContextMenu(null);
+    };
+
+    const commitTitle = () => {
+        const trimmed = draftTitle.trim();
+
+        if (!trimmed) {
+            setDraftTitle(noteTitle || '');
+            return;
+        }
+
+        if (trimmed !== noteTitle) {
+            onRenameTitle(trimmed);
+        }
     };
 
     return (
@@ -31,12 +50,27 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                         title="Redo"
                         onClick={() => editor?.chain().focus().redo().run()}
                     >↪️</button>
-                    <div className="quick-separator" />
-                    <button className="quick-action-btn" title="Save">💾</button>
                 </div>
-                <div className="note-title-display">
-                    {noteTitle || 'Untitled Note'}
-                </div>
+                <input
+                    ref={titleInputRef}
+                    className="note-title-input"
+                    value={draftTitle}
+                    onChange={(event) => setDraftTitle(event.target.value)}
+                    onBlur={commitTitle}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                            commitTitle();
+                            titleInputRef.current?.blur();
+                        }
+
+                        if (event.key === 'Escape') {
+                            setDraftTitle(noteTitle || '');
+                            titleInputRef.current?.blur();
+                        }
+                    }}
+                    placeholder="Untitled Note"
+                    aria-label="Note title"
+                />
                 <div className="header-spacer" />
             </div>
 
@@ -44,7 +78,6 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                 <div
                     className="page-canvas"
                     onContextMenu={handleContextMenu}
-                    onClick={() => editor?.commands.focus()}
                 >
                     <EditorContent editor={editor} />
                 </div>
@@ -101,37 +134,64 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     background-color: rgba(0,0,0,0.05);
                 }
 
-                .quick-separator {
-                    width: 1px;
-                    height: 16px;
-                    background-color: var(--separator-color);
+                .note-title-input {
+                    flex: 1;
+                    min-width: 0;
+                    max-width: 420px;
+                    border: 1px solid transparent;
+                    background: transparent;
+                    color: var(--editor-text-color);
+                    opacity: 0.88;
+                    font: inherit;
+                    font-size: 12px;
+                    font-weight: 600;
+                    border-radius: 6px;
+                    padding: 5px 8px;
                 }
 
-                .note-title-display {
-                    color: var(--editor-text-color);
-                    opacity: 0.8;
+                .note-title-input:hover {
+                    background-color: var(--hover-bg);
+                }
+
+                .note-title-input:focus {
+                    outline: none;
+                    opacity: 1;
+                    background-color: var(--editor-page-bg);
+                    border-color: var(--editor-border);
                 }
 
                 .header-spacer { flex: 1; }
 
                 .workspace-scroll-area {
                     flex: 1;
-                    overflow-y: auto; /* Standard vertical scroll */
-                    overflow-x: hidden; /* Prevent extra pane */
-                    display: block; /* Standard block layout for centering items */
-                    padding: 40px 0;
+                    overflow-y: auto;
+                    overflow-x: auto;
+                    display: block;
+                    padding: 32px 20px 48px;
                 }
 
                 .page-canvas {
-                    width: 816px; /* Approx 8.5 inches at 96 DPI */
-                    min-width: 816px; /* Force minimum width for horizontal scroll */
-                    min-height: 1056px; /* Approx 11 inches height */
+                    width: min(100%, 816px);
+                    min-width: 680px;
+                    min-height: 1056px;
                     background-color: var(--editor-page-bg);
                     box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
-                    padding: 96px; /* 1 inch margin */
+                    padding: clamp(32px, 6vw, 96px);
                     margin: 0 auto;
                     color: var(--editor-text-color);
                     cursor: text;
+                }
+
+                @media (max-width: 760px) {
+                    .workspace-scroll-area {
+                        padding: 20px 12px 32px;
+                    }
+
+                    .page-canvas {
+                        min-width: 0;
+                        width: 100%;
+                        min-height: auto;
+                    }
                 }
 
                 .ProseMirror {
@@ -142,6 +202,28 @@ const EditorWorkspace = ({ editor, noteTitle, onBack }) => {
                     font-size: 16px;
                     line-height: 1.5;
                     color: var(--editor-text-color);
+                }
+
+                .ProseMirror a {
+                    color: var(--color-accent);
+                    text-decoration: underline;
+                    text-underline-offset: 0.16em;
+                }
+
+                .ProseMirror code:not(pre code) {
+                    background: rgba(15, 23, 42, 0.08);
+                    border-radius: 6px;
+                    padding: 0.12rem 0.35rem;
+                    font-family: 'Source Code Pro', 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+                    font-size: 0.92em;
+                }
+
+                .ProseMirror blockquote {
+                    margin: 1rem 0;
+                    padding: 0.1rem 0 0.1rem 1rem;
+                    border-left: 3px solid var(--color-accent);
+                    color: color-mix(in srgb, var(--editor-text-color) 78%, transparent);
+                    font-style: italic;
                 }
 
                 /* List Styles */

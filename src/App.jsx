@@ -3,11 +3,9 @@ import { useMutation, useQuery } from 'convex/react';
 import Sidebar from './components/Sidebar';
 import MainGrid from './components/MainGrid';
 import {
-    STORAGE_KEY,
     createExportBundle,
     downloadJson,
     parseImportedJsonText,
-    parseLegacyLocalStorage,
 } from './lib/importExport';
 import { getNextFolderSortOrder, orderFoldersForDisplay, reorderSiblings } from './lib/folderOrder';
 
@@ -129,7 +127,9 @@ function App() {
             return;
         }
 
-        const selectedFolderStillExists = folders.some((folder) => folder.id === selectedFolderId);
+        const selectedFolderStillExists = [...folders, ...pendingFolders].some(
+            (folder) => folder.id === selectedFolderId
+        );
         if (selectedFolderStillExists) {
             return;
         }
@@ -141,7 +141,7 @@ function App() {
         if (fallbackFolder && selectedFolderId !== fallbackFolder.id) {
             setSelectedFolderId(fallbackFolder.id);
         }
-    }, [folders, selectedFolderId]);
+    }, [folders, pendingFolders, selectedFolderId]);
 
     useEffect(() => {
         if (!activeNoteId) {
@@ -177,6 +177,20 @@ function App() {
             window.clearTimeout(timerId);
         };
     }, [data]);
+
+    useEffect(() => {
+        if (!dataStatus) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            setDataStatus((current) => (current === dataStatus ? '' : current));
+        }, 4200);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [dataStatus]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -230,6 +244,8 @@ function App() {
                 sortOrder: getNextFolderSortOrder([...folders, ...prev], siblingParentId),
             },
         ]);
+        setSelectedFolderId(id);
+        setActiveNoteId(null);
         setRenamingId(id);
         return id;
     };
@@ -486,22 +502,6 @@ function App() {
         }
     };
 
-    const handleImportFromLocalStorage = async () => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) {
-                setDataStatus('No localStorage backup found for h-note-storage.');
-                return;
-            }
-            const bundle = parseLegacyLocalStorage(raw);
-            await handleImportBundle(bundle);
-            setDataStatus(`Migrated ${bundle.notes.length} notes from localStorage.`);
-        } catch (error) {
-            console.error(error);
-            setDataStatus('localStorage migration failed.');
-        }
-    };
-
     if (effectiveData === null) {
         return (
             <div
@@ -546,7 +546,6 @@ function App() {
                     onReorderFolders={handleReorderFolders}
                     onExportData={handleExportData}
                     onImportDataFile={handleImportDataFile}
-                    onImportFromLocalStorage={handleImportFromLocalStorage}
                     dataStatus={dataStatus}
                 />
             )}
