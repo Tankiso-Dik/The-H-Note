@@ -29,15 +29,6 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
     };
     const breadcrumbs = getBreadcrumbs();
 
-    // Grid Create Tile State
-    const [createMenuOpen, setCreateMenuOpen] = useState(false);
-    const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
-
-    const handleCreateClick = (e) => {
-        setCreateMenuOpen(true);
-        setCreateMenuAnchor({ x: e.clientX, y: e.clientY });
-    };
-
     const handleCreateAction = (type, template = null) => {
         if (type === 'folder') onAddFolder('New Folder');
         if (type === 'note') {
@@ -55,8 +46,6 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                 onAddNote('New Note', false);
             }
         }
-        setCreateMenuOpen(false);
-        setCreateMenuAnchor(null);
     };
 
     const handleCardClick = (id, multiSelect) => {
@@ -123,9 +112,6 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
         return options;
     };
 
-    // Template filtering for "Create" menu
-    // Global templates - accessible from any folder
-    const globalTemplates = allNotes.filter(n => n.isTemplate);
     const selectedItems = selection
         .map((id) => {
             const folder = subFolders.find((item) => item.id === id);
@@ -295,10 +281,13 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                         />
                     ))}
 
-                    {/* Grid Creation Tile */}
-                    <div className="card create-tile" onClick={handleCreateClick}>
-                        <div className="create-icon">+</div>
-                        <div className="card-label">New</div>
+                    <div className="card create-tile create-note-tile" onClick={() => handleCreateAction('note')}>
+                        <div className="create-icon">📝</div>
+                        <div className="card-label">New Note</div>
+                    </div>
+                    <div className="card create-tile create-folder-tile" onClick={() => handleCreateAction('folder')}>
+                        <div className="create-icon">📁</div>
+                        <div className="card-label">New Folder</div>
                     </div>
                 </div>
             </div>
@@ -309,26 +298,6 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     y={contextMenu.y}
                     options={getMenuOptions()}
                     onClose={closeContextMenu}
-                />
-            )}
-
-            {/* Creation Menu Popover */}
-            {createMenuOpen && (
-                <ContextMenu
-                    x={createMenuAnchor.x}
-                    y={createMenuAnchor.y}
-                    options={[
-                        { label: 'New Folder', action: () => handleCreateAction('folder') },
-                        { label: 'New Note', action: () => handleCreateAction('note') },
-                        ...(globalTemplates.length > 0 ? [
-                            { separator: true },
-                            ...globalTemplates.map(t => ({
-                                label: t.title,
-                                action: () => handleCreateAction('note', t)
-                            }))
-                        ] : [])
-                    ]}
-                    onClose={() => setCreateMenuOpen(false)}
                 />
             )}
 
@@ -448,6 +417,12 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     justify-content: center;
                     flex: 1;
                     width: 100%;
+                }
+
+                .create-folder-tile .create-icon,
+                .create-note-tile .create-icon {
+                    font-size: 28px;
+                    font-weight: 400;
                 }
             `}</style>
         </div>

@@ -70,6 +70,7 @@ function App() {
     const [dataStatus, setDataStatus] = useState('');
     const [isSlowLoad, setIsSlowLoad] = useState(false);
     const [pendingFolders, setPendingFolders] = useState([]);
+    const [pendingNotes, setPendingNotes] = useState([]);
 
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('app-theme') || 'light';
@@ -144,15 +145,33 @@ function App() {
     }, [folders, pendingFolders, selectedFolderId]);
 
     useEffect(() => {
+        if (pendingFolders.length === 0) {
+            return;
+        }
+
+        const persistedIds = new Set(folders.map((folder) => folder.id));
+        setPendingFolders((prev) => prev.filter((folder) => !persistedIds.has(folder.id)));
+    }, [folders, pendingFolders.length]);
+
+    useEffect(() => {
         if (!activeNoteId) {
             return;
         }
 
-        const activeStillExists = notes.some((note) => note.id === activeNoteId);
+        const activeStillExists = [...notes, ...pendingNotes].some((note) => note.id === activeNoteId);
         if (!activeStillExists) {
             setActiveNoteId(null);
         }
-    }, [activeNoteId, notes]);
+    }, [activeNoteId, notes, pendingNotes]);
+
+    useEffect(() => {
+        if (pendingNotes.length === 0) {
+            return;
+        }
+
+        const persistedIds = new Set(notes.map((note) => note.id));
+        setPendingNotes((prev) => prev.filter((note) => !persistedIds.has(note.id)));
+    }, [notes, pendingNotes.length]);
 
     useEffect(() => {
         return () => {
@@ -212,20 +231,25 @@ function App() {
         await upsertNote({ note });
     };
 
-    const allFolders = useMemo(
-        () => orderFoldersForDisplay([...folders, ...pendingFolders]),
-        [folders, pendingFolders]
-    );
+    const allFolders = useMemo(() => {
+        const persistedIds = new Set(folders.map((folder) => folder.id));
+        const optimisticFolders = pendingFolders.filter((folder) => !persistedIds.has(folder.id));
+        return orderFoldersForDisplay([...folders, ...optimisticFolders]);
+    }, [folders, pendingFolders]);
     const pendingFolderCreations = pendingFolders.reduce((acc, folder) => {
         acc[folder.id] = true;
         return acc;
     }, {});
 
+    const persistedNoteIds = new Set(notes.map((note) => note.id));
+    const optimisticNotes = pendingNotes.filter((note) => !persistedNoteIds.has(note.id));
+    const allNotesForDisplay = [...notes, ...optimisticNotes];
+
     const currentFolder = allFolders.find((folder) => folder.id === selectedFolderId) ?? null;
-    const currentNotes = notes.filter((note) => note.folderId === selectedFolderId);
+    const currentNotes = allNotesForDisplay.filter((note) => note.folderId === selectedFolderId);
     const currentSubFolders = allFolders.filter((folder) => folder.parentId === selectedFolderId);
 
-    const activeNoteBase = notes.find((note) => note.id === activeNoteId) ?? null;
+    const activeNoteBase = allNotesForDisplay.find((note) => note.id === activeNoteId) ?? null;
     const activeDraft = activeNoteId ? localDrafts[activeNoteId] : undefined;
     const activeNote =
         activeNoteBase && typeof activeDraft === 'string'
@@ -257,20 +281,28 @@ function App() {
         }
 
         const id = createId('note');
-        void persistNote({
+        const note = {
             id,
             title,
             folderId,
             content,
             isTemplate,
+        };
+
+        setPendingNotes((prev) => [...prev, note]);
+        setSelectedFolderId(folderId);
+        setActiveNoteId(id);
+        setRenamingId(null);
+        void persistNote({
+            ...note,
         });
-        setRenamingId(id);
         return id;
     };
 
     const handleRename = (id, newName) => {
         const pendingFolder = pendingFolders.find((item) => item.id === id);
         const folder = folders.find((item) => item.id === id);
+        const pendingNote = pendingNotes.find((item) => item.id === id);
         const note = notes.find((item) => item.id === id);
 
         if (pendingFolder) {
@@ -282,7 +314,9 @@ function App() {
                     sortOrder: pendingFolder.sortOrder,
                 },
             });
-            setPendingFolders((prev) => prev.filter((item) => item.id !== id));
+            setPendingFolders((prev) => prev.map((item) => (
+                item.id === id ? { ...item, name: newName } : item
+            )));
         }
 
         if (folder) {
@@ -296,13 +330,20 @@ function App() {
             });
         }
 
-        if (note) {
-            const draftContent = localDrafts[note.id];
+        if (pendingNote || note) {
+            const sourceNote = pendingNote || note;
+            const draftContent = localDrafts[sourceNote.id];
             void persistNote({
-                ...note,
-                content: typeof draftContent === 'string' ? draftContent : note.content,
+                ...sourceNote,
+                content: typeof draftContent === 'string' ? draftContent : sourceNote.content,
                 title: newName,
             });
+
+            if (pendingNote) {
+                setPendingNotes((prev) => prev.map((item) => (
+                    item.id === id ? { ...item, title: newName } : item
+                )));
+            }
         }
 
         setRenamingId(null);
@@ -311,6 +352,7 @@ function App() {
     const handleDelete = (id) => {
         const pendingFolder = pendingFolders.find((item) => item.id === id);
         const folder = folders.find((item) => item.id === id);
+        const pendingNote = pendingNotes.find((item) => item.id === id);
         const note = notes.find((item) => item.id === id);
 
         if (pendingFolder) {
@@ -337,6 +379,14 @@ function App() {
                 clearDraft(note.id);
             });
         }
+
+        if (pendingNote) {
+            setPendingNotes((prev) => prev.filter((item) => item.id !== id));
+            if (activeNoteId === pendingNote.id) {
+                setActiveNoteId(null);
+            }
+            clearDraft(pendingNote.id);
+        }
     };
 
     const handleCancelRename = (id) => {
@@ -351,14 +401,13 @@ function App() {
                     sortOrder: pendingFolder.sortOrder,
                 },
             });
-            setPendingFolders((prev) => prev.filter((item) => item.id !== id));
         }
 
         setRenamingId(null);
     };
 
     const handleToggleTemplate = (id) => {
-        const note = notes.find((item) => item.id === id);
+        const note = allNotesForDisplay.find((item) => item.id === id);
         if (!note) {
             return;
         }
@@ -418,7 +467,7 @@ function App() {
     };
 
     const handleUpdateNote = (id, updates) => {
-        const existing = notes.find((note) => note.id === id);
+        const existing = allNotesForDisplay.find((note) => note.id === id);
         if (!existing) {
             return;
         }
@@ -437,6 +486,14 @@ function App() {
             ...(typeof draftContent === 'string' ? { content: draftContent } : {}),
             ...updates,
         };
+
+        const isPending = pendingNotes.some((note) => note.id === id);
+        if (isPending) {
+            setPendingNotes((prev) => prev.map((note) => (
+                note.id === id ? merged : note
+            )));
+        }
+
         void persistNote(merged);
     };
 
@@ -560,12 +617,12 @@ function App() {
                     />
                 </Suspense>
             ) : (
-                <MainGrid
-                    currentFolder={currentFolder}
-                    allFolders={allFolders}
-                    subFolders={currentSubFolders}
-                    notes={currentNotes}
-                    allNotes={notes}
+            <MainGrid
+                currentFolder={currentFolder}
+                allFolders={allFolders}
+                subFolders={currentSubFolders}
+                notes={currentNotes}
+                allNotes={allNotesForDisplay}
                     onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
                     onAddNote={(title, isTemplate, content) =>
                         handleAddNote(title, selectedFolderId, isTemplate, content)
