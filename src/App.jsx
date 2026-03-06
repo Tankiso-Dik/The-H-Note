@@ -256,7 +256,8 @@ function App() {
             ? { ...activeNoteBase, content: activeDraft }
             : activeNoteBase;
 
-    const handleAddFolder = (name, parentId) => {
+    const handleAddFolder = (name, parentId, options = {}) => {
+        const { navigateToFolder = true } = options;
         const id = createId('folder');
         const siblingParentId = parentId ?? null;
         setPendingFolders((prev) => [
@@ -268,7 +269,11 @@ function App() {
                 sortOrder: getNextFolderSortOrder([...folders, ...prev], siblingParentId),
             },
         ]);
-        setSelectedFolderId(id);
+        if (navigateToFolder) {
+            setSelectedFolderId(id);
+        } else {
+            setSelectedFolderId(siblingParentId);
+        }
         setActiveNoteId(null);
         setRenamingId(id);
         return id;
@@ -623,7 +628,7 @@ function App() {
                 subFolders={currentSubFolders}
                 notes={currentNotes}
                 allNotes={allNotesForDisplay}
-                    onAddFolder={(name) => handleAddFolder(name, selectedFolderId)}
+                    onAddFolder={(name) => handleAddFolder(name, selectedFolderId, { navigateToFolder: false })}
                     onAddNote={(title, isTemplate, content) =>
                         handleAddNote(title, selectedFolderId, isTemplate, content)
                     }
