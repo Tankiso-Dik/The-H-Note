@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import Sidebar from './components/Sidebar';
 import MainGrid from './components/MainGrid';
@@ -9,6 +9,7 @@ import {
     parseImportedJsonText,
     parseLegacyLocalStorage,
 } from './lib/importExport';
+import { getNextFolderSortOrder, orderFoldersForDisplay, reorderSiblings } from './lib/folderOrder';
 
 const LazyNoteEditorShell = lazy(() => import('./components/editor/NoteEditorShell'));
 
@@ -52,6 +53,7 @@ function App() {
     const data = useQuery('notes:getAll');
     const ensureBootstrapData = useMutation('notes:ensureBootstrapData');
     const upsertFolder = useMutation('notes:upsertFolder');
+    const reorderFolders = useMutation('notes:reorderFolders');
     const deleteFolderRecursive = useMutation('notes:deleteFolderRecursive');
     const upsertNote = useMutation('notes:upsertNote');
     const deleteNote = useMutation('notes:deleteNote');
@@ -127,10 +129,6 @@ function App() {
             return;
         }
 
-        if (selectedFolderId === null) {
-            return;
-        }
-
         const selectedFolderStillExists = folders.some((folder) => folder.id === selectedFolderId);
         if (selectedFolderStillExists) {
             return;
@@ -140,7 +138,9 @@ function App() {
         const firstRootFolder = folders.find((folder) => folder.parentId === null);
         const fallbackFolder = homeFolder || firstRootFolder || folders[0];
 
-        setSelectedFolderId(fallbackFolder?.id ?? null);
+        if (fallbackFolder && selectedFolderId !== fallbackFolder.id) {
+            setSelectedFolderId(fallbackFolder.id);
+        }
     }, [folders, selectedFolderId]);
 
     useEffect(() => {
@@ -198,7 +198,10 @@ function App() {
         await upsertNote({ note });
     };
 
-    const allFolders = [...folders, ...pendingFolders];
+    const allFolders = useMemo(
+        () => orderFoldersForDisplay([...folders, ...pendingFolders]),
+        [folders, pendingFolders]
+    );
     const pendingFolderCreations = pendingFolders.reduce((acc, folder) => {
         acc[folder.id] = true;
         return acc;
@@ -217,12 +220,14 @@ function App() {
 
     const handleAddFolder = (name, parentId) => {
         const id = createId('folder');
+        const siblingParentId = parentId ?? null;
         setPendingFolders((prev) => [
             ...prev,
             {
                 id,
                 name,
-                parentId: parentId ?? null,
+                parentId: siblingParentId,
+                sortOrder: getNextFolderSortOrder([...folders, ...prev], siblingParentId),
             },
         ]);
         setRenamingId(id);
@@ -258,6 +263,7 @@ function App() {
                     id: pendingFolder.id,
                     name: newName,
                     parentId: pendingFolder.parentId,
+                    sortOrder: pendingFolder.sortOrder,
                 },
             });
             setPendingFolders((prev) => prev.filter((item) => item.id !== id));
@@ -269,6 +275,7 @@ function App() {
                     id: folder.id,
                     name: newName,
                     parentId: folder.parentId,
+                    sortOrder: folder.sortOrder,
                 },
             });
         }
@@ -317,9 +324,17 @@ function App() {
     };
 
     const handleCancelRename = (id) => {
-        const isPendingFolder = Boolean(pendingFolderCreations[id]);
+        const pendingFolder = pendingFolders.find((item) => item.id === id);
 
-        if (isPendingFolder) {
+        if (pendingFolder) {
+            void upsertFolder({
+                folder: {
+                    id: pendingFolder.id,
+                    name: pendingFolder.name,
+                    parentId: pendingFolder.parentId,
+                    sortOrder: pendingFolder.sortOrder,
+                },
+            });
             setPendingFolders((prev) => prev.filter((item) => item.id !== id));
         }
 
@@ -433,6 +448,32 @@ function App() {
         setRenamingId(null);
     };
 
+    const handleReorderFolders = async (orderedFolderIds, parentId = null) => {
+        const targetParentId = parentId ?? null;
+
+        setPendingFolders((prev) => reorderSiblings(prev, targetParentId, orderedFolderIds));
+        setCachedBundle((prev) => {
+            if (!prev) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                folders: reorderSiblings(prev.folders, targetParentId, orderedFolderIds),
+            };
+        });
+
+        try {
+            await reorderFolders({
+                parentId: targetParentId,
+                orderedFolderIds,
+            });
+        } catch (error) {
+            console.error(error);
+            setDataStatus('Could not save folder order. Refresh to resync.');
+        }
+    };
+
     const handleImportDataFile = async (file) => {
         try {
             const text = await file.text();
@@ -502,6 +543,7 @@ function App() {
                     onCancelRename={handleCancelRename}
                     pendingFolderCreations={pendingFolderCreations}
                     onDelete={handleDelete}
+                    onReorderFolders={handleReorderFolders}
                     onExportData={handleExportData}
                     onImportDataFile={handleImportDataFile}
                     onImportFromLocalStorage={handleImportFromLocalStorage}

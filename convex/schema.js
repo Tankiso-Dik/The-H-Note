@@ -6,6 +6,7 @@ export default defineSchema({
     folderId: v.string(),
     name: v.string(),
     parentId: v.union(v.string(), v.null()),
+    sortOrder: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index('by_folder_id', ['folderId'])

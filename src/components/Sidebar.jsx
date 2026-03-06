@@ -7,6 +7,13 @@ const SidebarItem = ({
   isSelected,
   isRenaming,
   isPendingCreation,
+  isDragTarget,
+  dropPosition,
+  isDragging,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   setRenamingId,
   onSelect,
   onRename,
@@ -14,8 +21,12 @@ const SidebarItem = ({
   onDelete,
 }) => {
   const [name, setName] = useState(folder.name);
+  const [contextMenu, setContextMenu] = useState(null);
   const inputRef = useRef(null);
-  const cancelReadyRef = useRef(!isPendingCreation);
+
+  useEffect(() => {
+    setName(folder.name);
+  }, [folder.name]);
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -24,34 +35,25 @@ const SidebarItem = ({
     }
   }, [isRenaming]);
 
-  useEffect(() => {
-    if (!isPendingCreation || !isRenaming) {
-      cancelReadyRef.current = true;
-      return;
-    }
-
-    cancelReadyRef.current = false;
-    const timerId = window.setTimeout(() => {
-      cancelReadyRef.current = true;
-    }, 350);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [isPendingCreation, isRenaming]);
-
   const handleSubmit = () => {
-    if (isPendingCreation && !cancelReadyRef.current) {
-      return;
-    }
-
     const trimmed = name.trim();
+
     if (!trimmed) {
+      if (isPendingCreation) {
+        onRename(folder.id, folder.name);
+        return;
+      }
+
       onCancelRename(folder.id);
       return;
     }
 
     if (trimmed === folder.name) {
+      if (isPendingCreation) {
+        onRename(folder.id, folder.name);
+        return;
+      }
+
       onCancelRename(folder.id);
       return;
     }
@@ -59,27 +61,36 @@ const SidebarItem = ({
     onRename(folder.id, trimmed);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
       handleSubmit();
+    }
+
+    if (event.key === 'Escape') {
+      onCancelRename(folder.id);
     }
   };
 
-  const [contextMenu, setContextMenu] = useState(null);
-
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+  const handleContextMenu = (event) => {
+    event.preventDefault();
+    setContextMenu({ x: event.clientX, y: event.clientY });
   };
 
   return (
     <>
       <div
-        className={`folder-row ${isSelected ? 'selected' : ''}`}
+        className={`folder-row ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${
+          isDragTarget ? `drop-${dropPosition}` : ''
+        }`}
         onClick={() => onSelect(folder.id)}
         onContextMenu={handleContextMenu}
+        draggable={!isRenaming && !isPendingCreation}
+        onDragStart={(event) => onDragStart(event, folder.id)}
+        onDragOver={(event) => onDragOver(event, folder.id)}
+        onDrop={(event) => onDrop(event, folder.id)}
+        onDragEnd={onDragEnd}
       >
-        {isSelected && <div className="selection-pill" />}
+        {isSelected ? <div className="selection-pill" /> : null}
 
         <span className="folder-icon">📁</span>
 
@@ -88,17 +99,17 @@ const SidebarItem = ({
             ref={inputRef}
             className="rename-input"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(event) => setName(event.target.value)}
             onBlur={handleSubmit}
             onKeyDown={handleKeyDown}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           />
         ) : (
           <span className="folder-name">{folder.name}</span>
         )}
       </div>
 
-      {contextMenu && (
+      {contextMenu ? (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -108,7 +119,7 @@ const SidebarItem = ({
           ]}
           onClose={() => setContextMenu(null)}
         />
-      )}
+      ) : null}
     </>
   );
 };
@@ -124,14 +135,15 @@ const Sidebar = ({
   onCancelRename,
   pendingFolderCreations,
   onDelete,
+  onReorderFolders,
   onExportData,
   onImportDataFile,
   onImportFromLocalStorage,
   dataStatus,
 }) => {
   const rootFolders = folders.filter((folder) => folder.parentId === null);
-
   const [plusMenu, setPlusMenu] = useState(null);
+  const [dragState, setDragState] = useState(null);
   const plusAreaRef = useRef(null);
   const importInputRef = useRef(null);
 
@@ -183,6 +195,74 @@ const Sidebar = ({
     };
   }, [plusMenu]);
 
+  const handleDragStart = (event, folderId) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', folderId);
+    setDragState({
+      draggedId: folderId,
+      targetId: folderId,
+      position: 'after',
+    });
+  };
+
+  const handleDragOver = (event, folderId) => {
+    event.preventDefault();
+
+    if (!dragState?.draggedId || dragState.draggedId === folderId) {
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const nextPosition = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+
+    setDragState((prev) => {
+      if (!prev || prev.draggedId === folderId && prev.position === nextPosition) {
+        return prev;
+      }
+
+      if (prev.targetId === folderId && prev.position === nextPosition) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        targetId: folderId,
+        position: nextPosition,
+      };
+    });
+  };
+
+  const handleDrop = async (event, folderId) => {
+    event.preventDefault();
+
+    const draggedId = dragState?.draggedId ?? event.dataTransfer.getData('text/plain');
+    if (!draggedId || draggedId === folderId) {
+      setDragState(null);
+      return;
+    }
+
+    const targetIndex = rootFolders.findIndex((folder) => folder.id === folderId);
+    const draggedIndex = rootFolders.findIndex((folder) => folder.id === draggedId);
+
+    if (targetIndex === -1 || draggedIndex === -1) {
+      setDragState(null);
+      return;
+    }
+
+    const nextFolders = [...rootFolders];
+    const [draggedFolder] = nextFolders.splice(draggedIndex, 1);
+    const rawInsertIndex = dragState?.position === 'before' ? targetIndex : targetIndex + 1;
+    const insertIndex = draggedIndex < rawInsertIndex ? rawInsertIndex - 1 : rawInsertIndex;
+    nextFolders.splice(insertIndex, 0, draggedFolder);
+
+    setDragState(null);
+    await onReorderFolders(nextFolders.map((folder) => folder.id), null);
+  };
+
+  const handleDragEnd = () => {
+    setDragState(null);
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -197,6 +277,13 @@ const Sidebar = ({
             isSelected={selectedFolderId === folder.id}
             isRenaming={renamingId === folder.id}
             isPendingCreation={Boolean(pendingFolderCreations?.[folder.id])}
+            isDragTarget={dragState?.targetId === folder.id && dragState.draggedId !== folder.id}
+            dropPosition={dragState?.position ?? 'after'}
+            isDragging={dragState?.draggedId === folder.id}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
             setRenamingId={setRenamingId}
             onSelect={onSelectFolder}
             onRename={onRename}
@@ -337,6 +424,7 @@ const Sidebar = ({
           font-size: var(--font-size-body);
           border-radius: 4px;
           padding-left: 12px;
+          padding-right: 10px;
           margin: 2px 8px;
         }
 
@@ -346,6 +434,29 @@ const Sidebar = ({
 
         .folder-row.selected {
           background-color: var(--selection-bg);
+        }
+
+        .folder-row.dragging {
+          opacity: 0.5;
+        }
+
+        .folder-row.drop-before::before,
+        .folder-row.drop-after::after {
+          content: '';
+          position: absolute;
+          left: 10px;
+          right: 10px;
+          height: 2px;
+          background-color: var(--color-accent);
+          border-radius: 999px;
+        }
+
+        .folder-row.drop-before::before {
+          top: -2px;
+        }
+
+        .folder-row.drop-after::after {
+          bottom: -2px;
         }
 
         .selection-pill {
@@ -369,17 +480,19 @@ const Sidebar = ({
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          min-width: 0;
+          flex: 1;
         }
 
         .rename-input {
           flex: 1;
+          min-width: 0;
           font-family: inherit;
           font-size: inherit;
           border: 1px solid var(--color-accent);
           outline: none;
           padding: 2px 4px;
           border-radius: 2px;
-          min-width: 0;
           color: var(--editor-text-color);
           background-color: var(--input-bg);
         }

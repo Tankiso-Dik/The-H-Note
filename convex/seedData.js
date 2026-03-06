@@ -1,10 +1,10 @@
 export const seedFolders = [
-  { id: 'folder-1', name: 'Home', parentId: null },
-  { id: 'folder-2', name: 'Projects', parentId: null },
-  { id: 'folder-3', name: 'Personal', parentId: null },
-  { id: 'folder-4', name: 'Work', parentId: 'folder-2' },
-  { id: 'folder-5', name: 'Ideas', parentId: 'folder-2' },
-  { id: 'folder-6', name: 'Archive', parentId: null },
+  { id: 'folder-1', name: 'Home', parentId: null, sortOrder: 0 },
+  { id: 'folder-2', name: 'Projects', parentId: null, sortOrder: 1024 },
+  { id: 'folder-3', name: 'Personal', parentId: null, sortOrder: 2048 },
+  { id: 'folder-4', name: 'Work', parentId: 'folder-2', sortOrder: 1024 },
+  { id: 'folder-5', name: 'Ideas', parentId: 'folder-2', sortOrder: 0 },
+  { id: 'folder-6', name: 'Archive', parentId: null, sortOrder: 3072 },
 ];
 
 export const seedNotes = [

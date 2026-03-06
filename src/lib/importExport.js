@@ -1,6 +1,7 @@
 export const STORAGE_KEY = 'h-note-storage';
 
 const isStringOrNull = (value) => typeof value === 'string' || value === null;
+const isNumberOrMissing = (value) => value === undefined || Number.isFinite(value);
 
 const normalizeFolder = (folder) => {
   if (!folder || typeof folder.id !== 'string' || typeof folder.name !== 'string') {
@@ -11,10 +12,15 @@ const normalizeFolder = (folder) => {
     return null;
   }
 
+  if (!isNumberOrMissing(folder.sortOrder)) {
+    return null;
+  }
+
   return {
     id: folder.id,
     name: folder.name,
     parentId: folder.parentId ?? null,
+    ...(typeof folder.sortOrder === 'number' ? { sortOrder: folder.sortOrder } : {}),
   };
 };
 

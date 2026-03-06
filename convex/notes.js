@@ -2,10 +2,13 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { seedFolders, seedNotes } from './seedData';
 
+const ORDER_STEP = 1024;
+
 const folderInput = v.object({
   id: v.string(),
   name: v.string(),
   parentId: v.union(v.string(), v.null()),
+  sortOrder: v.optional(v.number()),
 });
 
 const noteInput = v.object({
@@ -20,6 +23,7 @@ const folderFromDoc = (doc) => ({
   id: doc.folderId,
   name: doc.name,
   parentId: doc.parentId,
+  ...(typeof doc.sortOrder === 'number' ? { sortOrder: doc.sortOrder } : {}),
 });
 
 const noteFromDoc = (doc) => ({
@@ -35,6 +39,120 @@ const getFolderDocByFolderId = async (db, folderId) => {
     .query('folders')
     .withIndex('by_folder_id', (q) => q.eq('folderId', folderId))
     .unique();
+};
+
+const compareFolderNames = (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+
+const resolveSiblingSortOrders = (folders) => {
+  const legacyFolders = folders
+    .filter((folder) => typeof folder.sortOrder !== 'number')
+    .sort(compareFolderNames);
+
+  const legacyOrderById = new Map(
+    legacyFolders.map((folder, index) => [folder.id, index * ORDER_STEP])
+  );
+
+  return folders.map((folder) => ({
+    ...folder,
+    sortOrder:
+      typeof folder.sortOrder === 'number' ? folder.sortOrder : legacyOrderById.get(folder.id) ?? 0,
+  }));
+};
+
+const flattenFolderTree = (folders) => {
+  const resolvedFolders = resolveSiblingSortOrders(folders);
+  const childrenByParent = new Map();
+
+  for (const folder of resolvedFolders) {
+    const key = folder.parentId ?? '__root__';
+    if (!childrenByParent.has(key)) {
+      childrenByParent.set(key, []);
+    }
+    childrenByParent.get(key).push(folder);
+  }
+
+  for (const siblings of childrenByParent.values()) {
+    siblings.sort((a, b) => a.sortOrder - b.sortOrder || compareFolderNames(a, b));
+  }
+
+  const ordered = [];
+
+  const visit = (parentId) => {
+    const key = parentId ?? '__root__';
+    const siblings = childrenByParent.get(key) ?? [];
+    for (const folder of siblings) {
+      ordered.push(folder);
+      visit(folder.id);
+    }
+  };
+
+  visit(null);
+
+  return ordered;
+};
+
+const getResolvedFolderSortOrder = async (db, folderId, parentId) => {
+  const siblings = (await db
+    .query('folders')
+    .withIndex('by_parent_id', (q) => q.eq('parentId', parentId))
+    .collect())
+    .map(folderFromDoc);
+
+  return (
+    resolveSiblingSortOrders(siblings).find((folder) => folder.id === folderId)?.sortOrder ?? null
+  );
+};
+
+const getNextFolderSortOrder = async (db, parentId, excludeFolderId = null) => {
+  const siblings = (await db
+    .query('folders')
+    .withIndex('by_parent_id', (q) => q.eq('parentId', parentId))
+    .collect())
+    .map(folderFromDoc)
+    .filter((folder) => folder.id !== excludeFolderId);
+
+  if (siblings.length === 0) {
+    return 0;
+  }
+
+  const resolvedSiblings = resolveSiblingSortOrders(siblings);
+  const maxSortOrder = Math.max(...resolvedSiblings.map((folder) => folder.sortOrder ?? 0));
+  return maxSortOrder + ORDER_STEP;
+};
+
+const resolveFolderSortOrderForWrite = async (db, folder, existing) => {
+  if (typeof folder.sortOrder === 'number') {
+    return folder.sortOrder;
+  }
+
+  if (existing && existing.parentId === folder.parentId) {
+    const existingOrder = await getResolvedFolderSortOrder(db, folder.id, folder.parentId);
+    if (typeof existingOrder === 'number') {
+      return existingOrder;
+    }
+  }
+
+  return getNextFolderSortOrder(db, folder.parentId, folder.id);
+};
+
+const fillMissingSortOrdersFromSource = (folders) => {
+  const counters = new Map();
+
+  return folders.map((folder) => {
+    if (typeof folder.sortOrder === 'number') {
+      const currentMax = counters.get(folder.parentId ?? '__root__') ?? -ORDER_STEP;
+      counters.set(folder.parentId ?? '__root__', Math.max(currentMax, folder.sortOrder));
+      return folder;
+    }
+
+    const key = folder.parentId ?? '__root__';
+    const nextSortOrder = (counters.get(key) ?? -ORDER_STEP) + ORDER_STEP;
+    counters.set(key, nextSortOrder);
+    return {
+      ...folder,
+      sortOrder: nextSortOrder,
+    };
+  });
 };
 
 const getNoteDocByNoteId = async (db, noteId) => {
@@ -72,9 +190,7 @@ const collectFolderTreeIds = async (db, rootFolderId) => {
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
-    const folders = (await ctx.db.query('folders').collect())
-      .map(folderFromDoc)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const folders = flattenFolderTree((await ctx.db.query('folders').collect()).map(folderFromDoc));
     const notes = (await ctx.db.query('notes').collect())
       .map(noteFromDoc)
       .sort((a, b) => a.title.localeCompare(b.title));
@@ -98,6 +214,7 @@ export const ensureBootstrapData = mutation({
         folderId: folder.id,
         name: folder.name,
         parentId: folder.parentId,
+        sortOrder: folder.sortOrder,
         updatedAt: now,
       });
     }
@@ -123,11 +240,13 @@ export const upsertFolder = mutation({
   },
   handler: async (ctx, { folder }) => {
     const existing = await getFolderDocByFolderId(ctx.db, folder.id);
+    const sortOrder = await resolveFolderSortOrderForWrite(ctx.db, folder, existing);
 
     if (existing) {
       await ctx.db.patch(existing._id, {
         name: folder.name,
         parentId: folder.parentId,
+        sortOrder,
         updatedAt: Date.now(),
       });
       return folder.id;
@@ -137,6 +256,7 @@ export const upsertFolder = mutation({
       folderId: folder.id,
       name: folder.name,
       parentId: folder.parentId,
+      sortOrder,
       updatedAt: Date.now(),
     });
 
@@ -233,11 +353,12 @@ export const replaceAll = mutation({
 
     const now = Date.now();
 
-    for (const folder of folders) {
+    for (const folder of fillMissingSortOrdersFromSource(folders)) {
       await ctx.db.insert('folders', {
         folderId: folder.id,
         name: folder.name,
         parentId: folder.parentId,
+        sortOrder: folder.sortOrder,
         updatedAt: now,
       });
     }
@@ -257,5 +378,44 @@ export const replaceAll = mutation({
       folders: folders.length,
       notes: notes.length,
     };
+  },
+});
+
+export const reorderFolders = mutation({
+  args: {
+    parentId: v.union(v.string(), v.null()),
+    orderedFolderIds: v.array(v.string()),
+  },
+  handler: async (ctx, { parentId, orderedFolderIds }) => {
+    const siblings = await ctx.db
+      .query('folders')
+      .withIndex('by_parent_id', (q) => q.eq('parentId', parentId))
+      .collect();
+
+    const siblingIds = siblings.map((folder) => folder.folderId).sort();
+    const requestedIds = [...orderedFolderIds].sort();
+
+    if (
+      siblingIds.length !== requestedIds.length ||
+      siblingIds.some((folderId, index) => folderId !== requestedIds[index])
+    ) {
+      throw new Error('orderedFolderIds must contain every sibling exactly once.');
+    }
+
+    const folderDocById = new Map(siblings.map((folder) => [folder.folderId, folder]));
+
+    for (const [index, folderId] of orderedFolderIds.entries()) {
+      const folderDoc = folderDocById.get(folderId);
+      if (!folderDoc) {
+        continue;
+      }
+
+      await ctx.db.patch(folderDoc._id, {
+        sortOrder: index * ORDER_STEP,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { reordered: orderedFolderIds.length };
   },
 });
