@@ -2,14 +2,46 @@ import React, { useEffect, useRef, useState } from 'react';
 import { EditorContent } from '@tiptap/react';
 import EditorContextMenu from './EditorContextMenu';
 
+const getEditorPlainText = (editor) => editor?.getText({ blockSeparator: '\n\n' }) || '';
+
+const writeClipboardContent = async ({ text, html }) => {
+    if (navigator.clipboard?.write && window.ClipboardItem && html) {
+        const item = new window.ClipboardItem({
+            'text/plain': new Blob([text], { type: 'text/plain' }),
+            'text/html': new Blob([html], { type: 'text/html' }),
+        });
+        await navigator.clipboard.write([item]);
+        return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    throw new Error('Clipboard access is unavailable.');
+};
+
 const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
     const [contextMenu, setContextMenu] = useState(null);
     const [draftTitle, setDraftTitle] = useState(noteTitle || '');
+    const [isCanvasHovered, setIsCanvasHovered] = useState(false);
+    const [copiedTarget, setCopiedTarget] = useState(null);
     const titleInputRef = useRef(null);
+    const pageCanvasRef = useRef(null);
+    const copiedTimeoutRef = useRef(null);
 
     useEffect(() => {
         setDraftTitle(noteTitle || '');
     }, [noteTitle]);
+
+    useEffect(() => {
+        return () => {
+            if (copiedTimeoutRef.current) {
+                window.clearTimeout(copiedTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const handleContextMenu = (e) => {
         e.preventDefault();
@@ -33,6 +65,37 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
 
         if (trimmed !== noteTitle) {
             onRenameTitle(trimmed);
+        }
+    };
+
+    const showCopiedState = (target) => {
+        if (copiedTimeoutRef.current) {
+            window.clearTimeout(copiedTimeoutRef.current);
+        }
+
+        setCopiedTarget(target);
+        copiedTimeoutRef.current = window.setTimeout(() => {
+            setCopiedTarget((current) => current === target ? null : current);
+        }, 1600);
+    };
+
+    const handleCanvasMouseLeave = () => {
+        setIsCanvasHovered(false);
+    };
+
+    const handleCopyDocument = async () => {
+        if (!editor) {
+            return;
+        }
+
+        try {
+            await writeClipboardContent({
+                text: getEditorPlainText(editor),
+                html: editor.getHTML(),
+            });
+            showCopiedState('document');
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -76,9 +139,21 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
 
             <div className="workspace-scroll-area">
                 <div
+                    ref={pageCanvasRef}
                     className="page-canvas"
                     onContextMenu={handleContextMenu}
+                    onMouseEnter={() => setIsCanvasHovered(true)}
+                    onMouseLeave={handleCanvasMouseLeave}
                 >
+                    <button
+                        className={`canvas-copy-btn document-copy ${isCanvasHovered ? 'visible' : ''}`}
+                        onClick={handleCopyDocument}
+                        title={copiedTarget === 'document' ? 'Copied' : 'Copy document'}
+                        aria-label={copiedTarget === 'document' ? 'Copied' : 'Copy document'}
+                        type="button"
+                    >
+                        {copiedTarget === 'document' ? '✓' : '⧉'}
+                    </button>
                     <EditorContent editor={editor} />
                 </div>
             </div>
@@ -103,30 +178,34 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
                 }
 
                 .quick-access-header {
-                    height: 32px;
+                    min-height: 42px;
                     display: flex;
                     align-items: center;
-                    padding: 0 12px;
+                    gap: 12px;
+                    padding: 0 18px;
                     background-color: var(--editor-ribbon-bg);
                     border-bottom: 1px solid var(--editor-border);
-                    font-size: 11px;
+                    font-size: 12px;
                 }
 
                 .quick-actions {
                     display: flex;
-                    gap: 8px;
-                    margin-right: 20px;
+                    gap: 6px;
+                    margin-right: 8px;
                 }
 
                 .quick-action-btn {
                     background: transparent;
-                    border: none;
+                    border: 1px solid transparent;
+                    border-radius: 8px;
                     cursor: pointer;
                     opacity: 0.7;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: 14px;
+                    width: 30px;
+                    height: 30px;
                 }
 
                 .quick-action-btn:hover {
@@ -137,16 +216,16 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
                 .note-title-input {
                     flex: 1;
                     min-width: 0;
-                    max-width: 420px;
+                    max-width: 520px;
                     border: 1px solid transparent;
                     background: transparent;
                     color: var(--editor-text-color);
-                    opacity: 0.88;
+                    opacity: 0.92;
                     font: inherit;
-                    font-size: 12px;
+                    font-size: 13px;
                     font-weight: 600;
-                    border-radius: 6px;
-                    padding: 5px 8px;
+                    border-radius: 10px;
+                    padding: 8px 10px;
                 }
 
                 .note-title-input:hover {
@@ -167,40 +246,86 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
                     overflow-y: auto;
                     overflow-x: auto;
                     display: block;
-                    padding: 32px 20px 48px;
+                    padding: 24px 0 72px;
+                    background:
+                        radial-gradient(circle at top, rgba(255,255,255,0.55), transparent 45%),
+                        linear-gradient(180deg, color-mix(in srgb, var(--editor-workspace-bg) 88%, white 12%), var(--editor-workspace-bg));
                 }
 
                 .page-canvas {
-                    width: min(100%, 816px);
-                    min-width: 680px;
-                    min-height: 1056px;
-                    background-color: var(--editor-page-bg);
-                    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
-                    padding: clamp(32px, 6vw, 96px);
+                    width: min(100%, 820px);
+                    min-width: 0;
+                    min-height: 100%;
+                    background: transparent;
+                    border: 0;
+                    border-radius: 0;
+                    box-shadow: none;
+                    padding: 14px 44px 120px;
                     margin: 0 auto;
                     color: var(--editor-text-color);
                     cursor: text;
+                    position: relative;
+                }
+
+                .canvas-copy-btn {
+                    position: absolute;
+                    z-index: 3;
+                    border: 1px solid color-mix(in srgb, var(--editor-border) 82%, transparent);
+                    background: color-mix(in srgb, var(--editor-page-bg) 94%, white 6%);
+                    color: var(--editor-text-color);
+                    border-radius: 999px;
+                    width: 34px;
+                    height: 34px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+                    opacity: 0;
+                    pointer-events: none;
+                    transform: translateY(-4px);
+                    transition: opacity 0.16s ease, transform 0.16s ease;
+                }
+
+                .canvas-copy-btn.visible {
+                    opacity: 1;
+                    pointer-events: auto;
+                    transform: translateY(0);
+                }
+
+                .document-copy {
+                    top: 12px;
+                    right: 20px;
                 }
 
                 @media (max-width: 760px) {
                     .workspace-scroll-area {
-                        padding: 20px 12px 32px;
+                        padding: 12px 0 32px;
+                        background: var(--editor-workspace-bg);
                     }
 
                     .page-canvas {
-                        min-width: 0;
                         width: 100%;
                         min-height: auto;
+                        padding: 6px 18px 44px;
+                    }
+
+                    .document-copy {
+                        top: 10px;
+                        right: 10px;
                     }
                 }
 
                 .ProseMirror {
                     outline: none;
-                    min-height: 100%;
+                    min-height: calc(100vh - 260px);
+                    padding: 32px 0 20px;
                     text-align: left;
                     font-family: Calibri, sans-serif;
                     font-size: 16px;
-                    line-height: 1.5;
+                    line-height: 1.75;
                     color: var(--editor-text-color);
                 }
 
@@ -390,6 +515,21 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
                     color: #adb5bd;
                     pointer-events: none;
                     height: 0;
+                }
+
+                @media (max-width: 760px) {
+                    .quick-access-header {
+                        padding: 0 12px;
+                    }
+
+                    .note-title-input {
+                        max-width: none;
+                    }
+
+                    .ProseMirror {
+                        min-height: 42vh;
+                        padding-top: 40px;
+                    }
                 }
             `}</style>
         </div>

@@ -2,6 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ContextMenu from './ContextMenu';
 import CreateButton from './CreateButton';
 
+const isTypingTarget = (target) => {
+  if (!target) {
+    return false;
+  }
+
+  const tagName = target.tagName?.toLowerCase();
+  return tagName === 'input'
+    || tagName === 'textarea'
+    || tagName === 'select'
+    || Boolean(target.isContentEditable);
+};
+
 const SidebarItem = ({
   folder,
   isSelected,
@@ -146,6 +158,27 @@ const Sidebar = ({
   const plusAreaRef = useRef(null);
   const importInputRef = useRef(null);
 
+  const handleSidebarKeyDown = (event) => {
+    if (isTypingTarget(event.target) || renamingId) {
+      return;
+    }
+
+    if (!selectedFolderId) {
+      return;
+    }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault();
+      onDelete(selectedFolderId);
+      return;
+    }
+
+    if (event.key === 'F2') {
+      event.preventDefault();
+      setRenamingId(selectedFolderId);
+    }
+  };
+
   const openPlusMenu = (event) => {
     event.stopPropagation();
     setPlusMenu((prev) => (prev ? null : { open: true }));
@@ -262,7 +295,7 @@ const Sidebar = ({
   };
 
   return (
-    <div className="sidebar">
+    <div className="sidebar" onKeyDown={handleSidebarKeyDown} tabIndex={0}>
       <div className="sidebar-header">
         <CreateButton onCreate={() => onAddFolder('New Folder', null)} />
       </div>

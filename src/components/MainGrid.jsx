@@ -2,6 +2,18 @@ import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import ContextMenu from './ContextMenu';
 
+const isTypingTarget = (target) => {
+    if (!target) {
+        return false;
+    }
+
+    const tagName = target.tagName?.toLowerCase();
+    return tagName === 'input'
+        || tagName === 'textarea'
+        || tagName === 'select'
+        || Boolean(target.isContentEditable);
+};
+
 const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAddFolder, onAddNote, onNavigate, onOpenNote, renamingId, setRenamingId, onRename, onDelete, onToggleTemplate, theme, onToggleTheme }) => {
     const [selection, setSelection] = useState([]);
 
@@ -114,6 +126,87 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
     // Template filtering for "Create" menu
     // Global templates - accessible from any folder
     const globalTemplates = allNotes.filter(n => n.isTemplate);
+    const selectedItems = selection
+        .map((id) => {
+            const folder = subFolders.find((item) => item.id === id);
+            if (folder) {
+                return { id, type: 'folder' };
+            }
+
+            const note = notes.find((item) => item.id === id);
+            if (note) {
+                return { id, type: 'note' };
+            }
+
+            return null;
+        })
+        .filter(Boolean);
+    const primarySelection = selectedItems[0] ?? null;
+
+    const openSelection = () => {
+        if (!primarySelection || selectedItems.length !== 1) {
+            return;
+        }
+
+        if (primarySelection.type === 'folder') {
+            onNavigate(primarySelection.id);
+            return;
+        }
+
+        onOpenNote(primarySelection.id);
+    };
+
+    const renameSelection = () => {
+        if (!primarySelection || selectedItems.length !== 1) {
+            return;
+        }
+
+        setRenamingId(primarySelection.id);
+    };
+
+    const deleteSelection = () => {
+        if (selectedItems.length === 0) {
+            return;
+        }
+
+        selectedItems.forEach((item) => onDelete(item.id));
+        setSelection([]);
+    };
+
+    const handleGridKeyDown = (event) => {
+        if (isTypingTarget(event.target) || renamingId) {
+            return;
+        }
+
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+            if (selectedItems.length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            deleteSelection();
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            if (selectedItems.length !== 1) {
+                return;
+            }
+
+            event.preventDefault();
+            openSelection();
+            return;
+        }
+
+        if (event.key === 'F2') {
+            if (selectedItems.length !== 1) {
+                return;
+            }
+
+            event.preventDefault();
+            renameSelection();
+        }
+    };
 
     return (
         <div className="main-content">
@@ -151,7 +244,12 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                 </div>
             </div>
 
-            <div className="grid-scroller" onClick={() => setSelection([])}>
+            <div
+                className="grid-scroller"
+                onClick={() => setSelection([])}
+                onKeyDown={handleGridKeyDown}
+                tabIndex={0}
+            >
                 <div className="grid-container">
                     {subFolders.map(folder => (
                         <Card
@@ -251,7 +349,7 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     justify-content: space-between;
                     padding: 0 24px;
                 }
-                
+
                 .theme-toggle-grid {
                     background: transparent;
                     border: 1px solid var(--border-color);
@@ -264,7 +362,7 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     font-size: 14px;
                     color: inherit;
                 }
-                
+
                 .theme-toggle-grid:hover {
                     background-color: var(--hover-bg);
                 }

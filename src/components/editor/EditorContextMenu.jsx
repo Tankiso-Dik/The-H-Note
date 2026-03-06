@@ -4,6 +4,8 @@ import LinkEditorPopover from './LinkEditorPopover';
 const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const menuRef = useRef(null);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+    const [openSubmenu, setOpenSubmenu] = useState(null);
+    const [isImageUrlEditorOpen, setIsImageUrlEditorOpen] = useState(false);
     const currentLinkUrl = editor?.getAttributes('link').href || '';
 
     const applyLink = (url) => {
@@ -15,6 +17,17 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
 
         editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
         setIsLinkEditorOpen(false);
+    };
+
+    const applyImageUrl = (url) => {
+        if (!url) {
+            setIsImageUrlEditorOpen(false);
+            return;
+        }
+
+        editor?.chain().focus().setImage({ src: url }).run();
+        setIsImageUrlEditorOpen(false);
+        onClose();
     };
 
     const runAndClose = (command) => {
@@ -156,7 +169,10 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                 <div className="menu-item-with-popover">
                     <div
                         className={`menu-item ${editor?.isActive('link') ? 'active' : ''}`}
-                        onClick={() => setIsLinkEditorOpen((prev) => !prev)}
+                        onClick={() => {
+                            setOpenSubmenu(null);
+                            setIsLinkEditorOpen((prev) => !prev);
+                        }}
                     >
                         <span className="menu-item-icon">🔗</span>
                         <span className="menu-item-text">{editor?.isActive('link') ? 'Edit Link' : 'Add Link'}</span>
@@ -178,20 +194,18 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className="menu-item has-submenu"
-                    onMouseEnter={(e) => {
-                        const submenu = e.currentTarget.querySelector('.styles-submenu');
-                        if (submenu) submenu.style.display = 'flex';
-                    }}
-                    onMouseLeave={(e) => {
-                        const submenu = e.currentTarget.querySelector('.styles-submenu');
-                        if (submenu) submenu.style.display = 'none';
+                    onClick={() => {
+                        setIsLinkEditorOpen(false);
+                        setIsImageUrlEditorOpen(false);
+                        setOpenSubmenu((prev) => prev === 'styles' ? null : 'styles');
                     }}
                 >
                     <span className="menu-item-icon">🎨</span>
                     <span className="menu-item-text">Styles</span>
                     <span className="submenu-arrow">▶</span>
 
-                    <div className="styles-submenu" style={{ display: 'none' }}>
+                    {openSubmenu === 'styles' ? (
+                    <div className="styles-submenu">
                         <div className="submenu-section-label">Text Color</div>
                         <div className="color-grid">
                             {[
@@ -257,39 +271,45 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                             >❌</div>
                         </div>
                     </div>
+                    ) : null}
                 </div>
                 <div
-                    className="menu-item has-submenu"
-                    onMouseEnter={(e) => {
-                        const submenu = e.currentTarget.querySelector('.insert-submenu');
-                        if (submenu) submenu.style.display = 'flex';
-                    }}
-                    onMouseLeave={(e) => {
-                        const submenu = e.currentTarget.querySelector('.insert-submenu');
-                        if (submenu) submenu.style.display = 'none';
+                    className="menu-item has-submenu menu-item-with-popover"
+                    onClick={() => {
+                        setIsLinkEditorOpen(false);
+                        setOpenSubmenu((prev) => prev === 'insert' ? null : 'insert');
                     }}
                 >
                     <span className="menu-item-icon">➕</span>
                     <span className="menu-item-text">Insert</span>
                     <span className="submenu-arrow">▶</span>
 
-                    <div className="insert-submenu" style={{ display: 'none' }}>
+                    {openSubmenu === 'insert' ? (
+                    <div className="insert-submenu">
                         <div
                             className="menu-item"
-                            onClick={() => {
-                                const url = prompt('Enter image URL:');
-                                if (url) {
-                                    editor?.chain().focus().setImage({ src: url }).run();
-                                    onClose();
-                                }
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setIsImageUrlEditorOpen((prev) => !prev);
                             }}
                         >
                             <span className="menu-item-icon">🔗</span>
                             <span className="menu-item-text">Image from URL</span>
                         </div>
+                        {isImageUrlEditorOpen ? (
+                            <LinkEditorPopover
+                                compact
+                                title="Image URL"
+                                placeholder="https://example.com/image.png"
+                                initialUrl=""
+                                onSubmit={applyImageUrl}
+                                onClose={() => setIsImageUrlEditorOpen(false)}
+                            />
+                        ) : null}
                         <div
                             className="menu-item"
-                            onClick={() => {
+                            onClick={(event) => {
+                                event.stopPropagation();
                                 const input = document.createElement('input');
                                 input.type = 'file';
                                 input.accept = 'image/*';
@@ -311,6 +331,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                             <span className="menu-item-text">Upload from PC</span>
                         </div>
                     </div>
+                    ) : null}
                 </div>
             </div>
 

@@ -10,26 +10,34 @@ const RibbonGroup = ({ children }) => (
     </div>
 );
 
-const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
-    const [isExportOpen, setIsExportOpen] = useState(false);
+const IMPORT_ACCEPT = {
+    markdown: '.md,.markdown,text/markdown,text/x-markdown',
+    text: '.txt,text/plain',
+    pdf: '.pdf,application/pdf',
+};
+
+const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenFile }) => {
+    const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
-    const exportMenuRef = useRef(null);
+    const fileMenuRef = useRef(null);
     const linkMenuRef = useRef(null);
+    const importInputRef = useRef(null);
+    const importKindRef = useRef('markdown');
 
     useEffect(() => {
-        if (!isExportOpen) {
+        if (!isFileMenuOpen) {
             return;
         }
 
         const handleOutsideClick = (event) => {
-            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
-                setIsExportOpen(false);
+            if (fileMenuRef.current && !fileMenuRef.current.contains(event.target)) {
+                setIsFileMenuOpen(false);
             }
         };
 
         const handleEscape = (event) => {
             if (event.key === 'Escape') {
-                setIsExportOpen(false);
+                setIsFileMenuOpen(false);
             }
         };
 
@@ -40,7 +48,7 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
             document.removeEventListener('mousedown', handleOutsideClick);
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [isExportOpen]);
+    }, [isFileMenuOpen]);
 
     useEffect(() => {
         if (!isLinkEditorOpen) {
@@ -68,7 +76,42 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
         };
     }, [isLinkEditorOpen]);
 
-    const exportOptions = useMemo(() => [
+    const fileOptions = useMemo(() => [
+        {
+            label: 'Open Markdown',
+            icon: '📘',
+            action: () => {
+                importKindRef.current = 'markdown';
+                if (importInputRef.current) {
+                    importInputRef.current.accept = IMPORT_ACCEPT.markdown;
+                    importInputRef.current.click();
+                }
+            },
+        },
+        {
+            label: 'Open Text',
+            icon: '📄',
+            action: () => {
+                importKindRef.current = 'text';
+                if (importInputRef.current) {
+                    importInputRef.current.accept = IMPORT_ACCEPT.text;
+                    importInputRef.current.click();
+                }
+            },
+        },
+        {
+            label: 'Open PDF',
+            icon: '📕',
+            hint: 'text only',
+            action: () => {
+                importKindRef.current = 'pdf';
+                if (importInputRef.current) {
+                    importInputRef.current.accept = IMPORT_ACCEPT.pdf;
+                    importInputRef.current.click();
+                }
+            },
+        },
+        { type: 'separator' },
         {
             label: 'PDF',
             icon: '📄',
@@ -102,6 +145,20 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
     ], [editor, noteTitle]);
 
     const currentLinkUrl = editor?.getAttributes('link').href || '';
+    const hasExplicitTextAlign =
+        editor?.isActive({ textAlign: 'center' }) ||
+        editor?.isActive({ textAlign: 'right' }) ||
+        editor?.isActive({ textAlign: 'justify' });
+
+    const handleFontFamilyChange = (font) => {
+        localStorage.setItem('editor-default-font', font);
+        editor?.chain().setFontFamily(font).run();
+    };
+
+    const handleFontSizeChange = (size) => {
+        localStorage.setItem('editor-default-font-size', size);
+        editor?.chain().setMark('textStyle', { fontSize: `${size}pt` }).run();
+    };
 
     const applyLink = (url) => {
         if (!url) {
@@ -114,13 +171,84 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
         setIsLinkEditorOpen(false);
     };
 
+    const handleImportedFileChange = async (event) => {
+        const [file] = Array.from(event.target.files || []);
+        event.target.value = '';
+
+        if (!file || !onOpenFile) {
+            return;
+        }
+
+        await onOpenFile(file, importKindRef.current);
+        setIsFileMenuOpen(false);
+    };
+
     return (
         <div className="editor-ribbon">
-            <div className="ribbon-back-container">
+            <div className="ribbon-left-rail">
+                <div className="file-panel-anchor" ref={fileMenuRef}>
+                    <button
+                        className={`ribbon-file-btn ${isFileMenuOpen ? 'active' : ''}`}
+                        onClick={() => setIsFileMenuOpen((prev) => !prev)}
+                        title="File"
+                        type="button"
+                    >
+                        <span className="icon">📂</span>
+                        <span>File</span>
+                    </button>
+                    <input
+                        ref={importInputRef}
+                        type="file"
+                        style={{ display: 'none' }}
+                        onChange={handleImportedFileChange}
+                    />
+                    {isFileMenuOpen ? (
+                        <div className="file-panel">
+                            <div className="file-panel-header">
+                                <span className="file-panel-title">File</span>
+                                <span className="file-panel-subtitle">Open or export this note</span>
+                            </div>
+                            <div className="file-panel-section">
+                                <span className="file-panel-section-label">Open</span>
+                                {fileOptions.filter((option) => option.label?.startsWith('Open')).map((option) => (
+                                    <button
+                                        key={option.label}
+                                        className="file-panel-option"
+                                        onClick={() => option.action()}
+                                        type="button"
+                                    >
+                                        <span>{option.icon}</span>
+                                        <span className="file-panel-option-label">{option.label}</span>
+                                        {option.hint ? <span className="file-panel-option-hint">{option.hint}</span> : null}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="file-panel-section">
+                                <span className="file-panel-section-label">Export</span>
+                                {fileOptions.filter((option) => option.label && !option.label.startsWith('Open')).map((option) => (
+                                    <button
+                                        key={option.label}
+                                        className="file-panel-option"
+                                        onClick={() => {
+                                            option.action();
+                                            setIsFileMenuOpen(false);
+                                        }}
+                                        type="button"
+                                    >
+                                        <span>{option.icon}</span>
+                                        <span className="file-panel-option-label">{option.label}</span>
+                                        {option.hint ? <span className="file-panel-option-hint">{option.hint}</span> : null}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
                 <button
                     className="ribbon-back-btn"
                     onClick={onBack}
                     title="Back to Notes"
+                    type="button"
                 >
                     <span className="icon">←</span>
                     <span>Back</span>
@@ -135,10 +263,7 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
                         className="ribbon-select font-family"
                         value={editor?.getAttributes('textStyle').fontFamily || localStorage.getItem('editor-default-font') || "Calibri, sans-serif"}
                         onChange={(e) => {
-                            const font = e.target.value;
-                            // Ensure editor is focused before applying to update stored marks for next input
-                            editor?.chain().focus().setFontFamily(font).run();
-                            localStorage.setItem('editor-default-font', font);
+                            handleFontFamilyChange(e.target.value);
                         }}
                         disabled={!editor}
                     >
@@ -162,10 +287,7 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
                         className="ribbon-select font-size"
                         value={editor?.getAttributes('textStyle').fontSize?.replace('pt', '') || localStorage.getItem('editor-default-font-size') || "11"}
                         onChange={(e) => {
-                            const size = e.target.value;
-                            // Ensure editor is focused before applying to update stored marks for next input
-                            editor?.chain().focus().setMark('textStyle', { fontSize: `${size}pt` }).run();
-                            localStorage.setItem('editor-default-font-size', size);
+                            handleFontSizeChange(e.target.value);
                         }}
                         disabled={!editor}
                     >
@@ -283,49 +405,35 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
             <div className="ribbon-separator" />
 
             <RibbonGroup>
-                <div className="ribbon-styles-container">
-                    <div
-                        className={`style-box ${editor?.isActive('paragraph') && !editor?.isActive('heading') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().setParagraph().run()}
-                    >
-                        <div className="style-preview">AaBbCc</div>
-                        <div className="style-name">Normal</div>
-                    </div>
-                    <div
-                        className={`style-box ${editor?.isActive('heading', { level: 1 }) ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                    >
-                        <div className="style-preview h1">AaBbCc</div>
-                        <div className="style-name">Heading 1</div>
-                    </div>
-                    <div
-                        className={`style-box ${editor?.isActive('heading', { level: 2 }) ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                    >
-                        <div className="style-preview h2">AaBbCc</div>
-                        <div className="style-name">Heading 2</div>
-                    </div>
-                    <div
-                        className={`style-box ${editor?.isActive('heading', { level: 3 }) ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                    >
-                        <div className="style-preview h3">AaBbCc</div>
-                        <div className="style-name">Heading 3</div>
-                    </div>
+                <div className="ribbon-grid align-grid">
+                    <button
+                        className={`ribbon-button-mini ${!hasExplicitTextAlign ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+                        title="Align Left"
+                    >L</button>
+                    <button
+                        className={`ribbon-button-mini ${editor?.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+                        title="Align Center"
+                    >C</button>
+                    <button
+                        className={`ribbon-button-mini ${editor?.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
+                        onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+                        title="Align Right"
+                    >R</button>
                 </div>
             </RibbonGroup>
 
-            <div className="ribbon-separator" />
-
             <RibbonGroup>
-                <div className="ribbon-column">
+                <div className="ribbon-column compact-tools">
                     <button
-                        className="ribbon-button large"
+                        className="ribbon-button small"
                         onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
                         title="Insert 3x3 Table"
+                        type="button"
                     >
                         <span className="icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <line x1="3" y1="9" x2="21" y2="9"></line>
                                 <line x1="3" y1="15" x2="21" y2="15"></line>
@@ -339,42 +447,11 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
                         className={`ribbon-button small ${editor?.isActive('codeBlock') ? 'active' : ''}`}
                         onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
                         title="Code Block"
+                        type="button"
                     >
                         <span className="icon">💻</span>
                         <span>Code</span>
                     </button>
-                </div>
-            </RibbonGroup>
-
-            <div className="ribbon-separator" />
-
-            <RibbonGroup>
-                <div className="ribbon-column export-group" ref={exportMenuRef}>
-                    <button
-                        className="ribbon-button large"
-                        onClick={() => setIsExportOpen((prev) => !prev)}
-                        title="Export Note"
-                    >
-                        <span className="icon">📥</span>
-                        <span>Export</span>
-                    </button>
-                    {isExportOpen ? (
-                        <div className="export-dropdown">
-                            {exportOptions.map((option) => (
-                                <button
-                                    key={option.label}
-                                    className="export-option"
-                                    onClick={() => {
-                                        option.action();
-                                        setIsExportOpen(false);
-                                    }}
-                                >
-                                    <span>{option.icon}</span>
-                                    <span>{option.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    ) : null}
                 </div>
             </RibbonGroup>
 
@@ -388,57 +465,157 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
 
             <style>{`
                 .editor-ribbon {
-                    height: 120px;
+                    min-height: 118px;
                     background-color: var(--editor-ribbon-bg);
                     border-bottom: 1px solid var(--editor-border);
                     display: flex;
-                    padding: 4px 12px;
-                    align-items: stretch;
+                    flex-wrap: wrap;
+                    align-items: flex-start;
+                    gap: 8px 0;
+                    padding: 8px 14px 10px;
                     color: var(--editor-text-color);
-                    overflow-x: auto;
-                    scrollbar-width: none;
-                }
-                
-                .editor-ribbon::-webkit-scrollbar {
-                    display: none;
                 }
 
-                .ribbon-back-container {
-                    display: flex;
-                    align-items: center;
-                    padding: 0 8px;
-                }
-
-                .ribbon-back-btn {
+                .ribbon-left-rail {
                     display: flex;
                     flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                    min-width: 94px;
+                    padding: 2px 2px 2px 0;
+                }
+
+                .file-panel-anchor {
+                    position: relative;
+                }
+
+                .ribbon-file-btn,
+                .ribbon-back-btn {
+                    display: flex;
                     align-items: center;
-                    justify-content: center;
+                    justify-content: flex-start;
+                    gap: 10px;
                     background: transparent;
                     border: 1px solid transparent;
-                    border-radius: 4px;
-                    padding: 8px;
-                    min-width: 48px;
+                    border-radius: 12px;
+                    padding: 10px 12px;
+                    min-width: 0;
                     cursor: pointer;
                     color: inherit;
                     transition: background 0.2s;
+                    text-align: left;
+                    font-size: 13px;
+                    font-weight: 600;
                 }
 
+                .ribbon-file-btn {
+                    border-color: color-mix(in srgb, var(--editor-border) 80%, transparent);
+                    background: color-mix(in srgb, var(--editor-page-bg) 80%, transparent);
+                    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+                }
+
+                .ribbon-file-btn.active {
+                    background: var(--hover-bg);
+                    border-color: color-mix(in srgb, var(--color-accent) 48%, var(--editor-border));
+                }
+
+                .ribbon-file-btn:hover,
                 .ribbon-back-btn:hover {
                     background-color: var(--hover-bg);
                 }
 
+                [data-theme="dark"] .ribbon-file-btn:hover,
                 [data-theme="dark"] .ribbon-back-btn:hover {
                     background-color: rgba(255,255,255,0.1);
                 }
 
+                .ribbon-file-btn .icon,
                 .ribbon-back-btn .icon {
-                    font-size: 20px;
-                    margin-bottom: 2px;
+                    font-size: 18px;
                 }
 
-                .ribbon-back-btn span:not(.icon) {
+                .file-panel {
+                    position: absolute;
+                    top: calc(100% + 8px);
+                    left: 0;
+                    width: 280px;
+                    max-width: min(280px, calc(100vw - 32px));
+                    background: color-mix(in srgb, var(--editor-page-bg) 96%, white 4%);
+                    border: 1px solid color-mix(in srgb, var(--editor-border) 84%, transparent);
+                    border-radius: 18px;
+                    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.16);
+                    padding: 14px;
+                    z-index: 1000;
+                }
+
+                .file-panel-header {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    margin-bottom: 10px;
+                }
+
+                .file-panel-title {
+                    font-size: 14px;
+                    font-weight: 700;
+                }
+
+                .file-panel-subtitle {
                     font-size: 11px;
+                    opacity: 0.68;
+                }
+
+                .file-panel-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+
+                .file-panel-section + .file-panel-section {
+                    margin-top: 10px;
+                    padding-top: 10px;
+                    border-top: 1px solid color-mix(in srgb, var(--editor-border) 75%, transparent);
+                }
+
+                .file-panel-section-label {
+                    font-size: 10px;
+                    font-weight: 700;
+                    opacity: 0.68;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    padding: 0 4px;
+                }
+
+                .file-panel-option {
+                    width: 100%;
+                    padding: 10px 12px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    color: var(--editor-text-color);
+                    transition: background 0.12s;
+                    background: transparent;
+                    border: 0;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    text-align: left;
+                }
+
+                .file-panel-option:hover {
+                    background: var(--hover-bg);
+                }
+
+                .file-panel-option-label {
+                    flex: 1;
+                    font-weight: 500;
+                }
+
+                .file-panel-option-hint {
+                    font-size: 10px;
+                    opacity: 0.6;
+                    text-transform: uppercase;
+                    letter-spacing: 0.04em;
                 }
 
                 .ribbon-group {
@@ -564,48 +741,20 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
                     gap: 2px;
                 }
 
-                .ribbon-styles-container {
-                    display: flex;
-                    gap: 8px;
-                    height: 100%;
-                    padding: 4px 0;
-                    overflow-x: auto;
-                }
-
-                .style-box {
-                    width: 70px;
-                    border: 1px solid transparent;
-                    border-radius: 4px;
-                    display: flex;
-                    flex-direction: column;
-                    cursor: pointer;
-                    background: var(--input-bg);
-                }
-
-                .style-box.active {
-                    border-color: black;
-                    outline: 1px solid black;
-                }
-
-                .style-preview {
-                    flex: 1;
-                    display: flex;
-                    align-items: center;
+                .compact-tools {
+                    gap: 6px;
                     justify-content: center;
-                    font-size: 14px;
-                    color: var(--editor-text-color);
                 }
 
-                .style-preview.h1 { font-size: 18px; font-weight: bold; }
-                .style-preview.h2 { font-size: 16px; font-weight: bold; }
-                .style-preview.h3 { font-size: 14px; font-weight: bold; }
+                .compact-tools .ribbon-button {
+                    min-height: 30px;
+                    border-radius: 10px;
+                    padding: 6px 10px;
+                }
 
-                .style-name {
-                    font-size: 10px;
-                    padding: 2px 4px;
-                    border-top: 1px solid var(--separator-color);
-                    text-align: center;
-                    color: var(--editor-text-color);
+                .compact-tools .ribbon-button.active {
+                    background-color: var(--selection-bg);
+                    border-color: var(--color-accent);
                 }
 
                 .ribbon-spacer {
@@ -636,45 +785,48 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack }) => {
                     background-color: rgba(255,255,255,0.1);
                 }
 
-                .export-dropdown {
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    margin-top: 4px;
-                    background: var(--editor-ribbon-bg);
-                    border: 1px solid var(--editor-border);
-                    border-radius: 8px;
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.14);
-                    padding: 4px 0;
-                    min-width: 160px;
-                    z-index: 1000;
+                @media (max-width: 1180px) {
+                    .ribbon-spacer {
+                        display: none;
+                    }
+
+                    .ribbon-theme-toggle {
+                        margin-left: auto;
+                        padding-right: 0;
+                    }
                 }
 
-                .export-option {
-                    width: 100%;
-                    padding: 8px 12px;
-                    cursor: pointer;
-                    font-size: 12px;
-                    color: var(--editor-text-color);
-                    transition: background 0.1s;
-                    background: transparent;
-                    border: 0;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    text-align: left;
+                @media (max-width: 900px) {
+                    .editor-ribbon {
+                        padding: 8px 10px 10px;
+                    }
+
+                    .ribbon-left-rail {
+                        width: 100%;
+                        flex-direction: row;
+                        min-width: 0;
+                    }
+
+                    .ribbon-separator {
+                        display: none;
+                    }
+
+                    .ribbon-group {
+                        padding: 2px 4px;
+                    }
+
                 }
 
-                .export-option:hover {
-                    background-color: var(--hover-bg);
-                }
+                @media (max-width: 680px) {
+                    .ribbon-file-btn,
+                    .ribbon-back-btn {
+                        flex: 1;
+                    }
 
-                [data-theme="dark"] .export-option:hover {
-                    background-color: rgba(255,255,255,0.1);
-                }
-
-                .ribbon-column {
-                    position: relative;
+                    .ribbon-theme-toggle {
+                        width: 100%;
+                        justify-content: flex-end;
+                    }
                 }
             `}</style>
         </div>

@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const LinkEditorPopover = ({ initialUrl, onSubmit, onRemove, onClose, compact = false }) => {
+const LinkEditorPopover = ({
+    initialUrl,
+    onSubmit,
+    onRemove,
+    onClose,
+    compact = false,
+    title = 'Link',
+    placeholder = 'https://example.com',
+    submitLabel = 'Apply',
+}) => {
     const [value, setValue] = useState(initialUrl || '');
     const inputRef = useRef(null);
 
@@ -19,13 +28,13 @@ const LinkEditorPopover = ({ initialUrl, onSubmit, onRemove, onClose, compact = 
 
     return (
         <div className={`link-popover ${compact ? 'compact' : ''}`} onClick={(event) => event.stopPropagation()}>
-            <div className="link-popover-title">Link</div>
+            <div className="link-popover-title">{title}</div>
             <input
                 ref={inputRef}
                 className="link-popover-input"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                placeholder="https://example.com"
+                placeholder={placeholder}
                 onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                         handleSubmit();
@@ -41,7 +50,7 @@ const LinkEditorPopover = ({ initialUrl, onSubmit, onRemove, onClose, compact = 
                 {initialUrl ? (
                     <button className="link-popover-btn ghost" onClick={onRemove}>Remove</button>
                 ) : null}
-                <button className="link-popover-btn primary" onClick={handleSubmit}>Apply</button>
+                <button className="link-popover-btn primary" onClick={handleSubmit}>{submitLabel}</button>
             </div>
 
             <style>{`
