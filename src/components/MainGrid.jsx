@@ -237,6 +237,22 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                 tabIndex={0}
             >
                 <div className="grid-container">
+                    {isEmpty ? (
+                        <div className="empty-state">
+                            <div className="empty-state-title">This folder is empty</div>
+                            <div className="empty-state-copy">
+                                Add a note to start writing or create a subfolder to keep things organized.
+                            </div>
+                            <div className="empty-state-actions">
+                                <button type="button" className="empty-state-btn primary" onClick={() => handleCreateAction('note')}>
+                                    New Note
+                                </button>
+                                <button type="button" className="empty-state-btn" onClick={() => handleCreateAction('folder')}>
+                                    New Folder
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
                     {subFolders.map(folder => (
                         <Card
                             key={folder.id}
@@ -282,7 +298,7 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     ))}
 
                     <div className="card create-tile create-note-tile" onClick={() => handleCreateAction('note')}>
-                        <div className="create-icon">📝</div>
+                        <div className="create-icon">📄</div>
                         <div className="card-label">New Note</div>
                     </div>
                     <div className="card create-tile create-folder-tile" onClick={() => handleCreateAction('folder')}>
@@ -385,6 +401,52 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     align-content: flex-start;
                 }
 
+                .empty-state {
+                    width: min(100%, 360px);
+                    padding: 22px 20px;
+                    border-radius: 20px;
+                    background: color-mix(in srgb, var(--selection-bg) 52%, var(--bg-main));
+                    border: 1px solid color-mix(in srgb, var(--selection-border) 36%, var(--border-color));
+                    color: var(--editor-text-color);
+                }
+
+                .empty-state-title {
+                    font-size: 16px;
+                    font-weight: 700;
+                    margin-bottom: 8px;
+                }
+
+                .empty-state-copy {
+                    font-size: 13px;
+                    line-height: 1.5;
+                    opacity: 0.82;
+                }
+
+                .empty-state-actions {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 16px;
+                }
+
+                .empty-state-btn {
+                    min-height: 40px;
+                    border-radius: 999px;
+                    border: 1px solid var(--border-color);
+                    background: var(--input-bg);
+                    color: var(--editor-text-color);
+                    padding: 0 14px;
+                    font: inherit;
+                    font-size: 13px;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+
+                .empty-state-btn.primary {
+                    background: var(--color-accent);
+                    border-color: var(--color-accent);
+                    color: white;
+                }
+
                 .create-tile {
                     border: 1px dashed var(--border-color);
                     background-color: rgba(0,0,0,0.02);
@@ -424,6 +486,7 @@ const MainGrid = ({ currentFolder, allFolders, subFolders, notes, allNotes, onAd
                     font-size: 28px;
                     font-weight: 400;
                 }
+
             `}</style>
         </div>
     );

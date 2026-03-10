@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import LinkEditorPopover from './LinkEditorPopover';
+import {
+    applyEditorLink,
+    insertEditorImageFromFile,
+    insertEditorImageFromUrl,
+    runEditorCommand,
+} from './editorActions';
 
 const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const menuRef = useRef(null);
@@ -9,13 +15,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const currentLinkUrl = editor?.getAttributes('link').href || '';
 
     const applyLink = (url) => {
-        if (!url) {
-            editor?.chain().focus().unsetLink().run();
-            setIsLinkEditorOpen(false);
-            return;
-        }
-
-        editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        applyEditorLink(editor, url);
         setIsLinkEditorOpen(false);
     };
 
@@ -25,7 +25,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             return;
         }
 
-        editor?.chain().focus().setImage({ src: url }).run();
+        insertEditorImageFromUrl(editor, url);
         setIsImageUrlEditorOpen(false);
         onClose();
     };
@@ -85,7 +85,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className={`menu-item ${editor?.isActive('codeBlock') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleCodeBlock().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleCodeBlock'))}
                 >
                     <span className="menu-item-icon">💻</span>
                     <span className="menu-item-text">Code Block</span>
@@ -97,27 +97,27 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-mini-toolbar">
                 <button
                     className={`mini-tool-btn ${editor?.isActive('bold') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBold().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleBold'))}
                     title="Bold"
                 ><b>B</b></button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('italic') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleItalic().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleItalic'))}
                     title="Italic"
                 ><i>I</i></button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('underline') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleUnderline().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleUnderline'))}
                     title="Underline"
                 ><u>U</u></button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('code') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleCode().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleCode'))}
                     title="Inline Code"
                 >{'</>'}</button>
                 <button
                     className={`mini-tool-btn ${editor?.isActive('highlight') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleHighlight({ color: '#ffeb3b' }).run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleHighlight', { color: '#ffeb3b' }))}
                     title="Highlight"
                 >🖍️</button>
             </div>
@@ -127,7 +127,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className="menu-item"
-                    onClick={() => runAndClose(() => editor?.chain().focus().selectAll().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'selectAll'))}
                 >
                     <span className="menu-item-icon">⌘</span>
                     <span className="menu-item-text">Select All</span>
@@ -140,28 +140,28 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className={`menu-item ${editor?.isActive('bulletList') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBulletList().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleBulletList'))}
                 >
                     <span className="menu-item-icon">•</span>
                     <span className="menu-item-text">Bullet List</span>
                 </div>
                 <div
                     className={`menu-item ${editor?.isActive('orderedList') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleOrderedList().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleOrderedList'))}
                 >
                     <span className="menu-item-icon">1.</span>
                     <span className="menu-item-text">Numbered List</span>
                 </div>
                 <div
                     className={`menu-item ${editor?.isActive('taskList') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleTaskList().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleTaskList'))}
                 >
                     <span className="menu-item-icon">☑</span>
                     <span className="menu-item-text">Task List</span>
                 </div>
                 <div
                     className={`menu-item ${editor?.isActive('blockquote') ? 'active' : ''}`}
-                    onClick={() => runAndClose(() => editor?.chain().focus().toggleBlockquote().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleBlockquote'))}
                 >
                     <span className="menu-item-icon">❝</span>
                     <span className="menu-item-text">Blockquote</span>
@@ -314,16 +314,13 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                                 input.type = 'file';
                                 input.accept = 'image/*';
                                 input.onchange = (e) => {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onload = (event) => {
-                                            editor?.chain().focus().setImage({ src: event.target.result }).run();
-                                            onClose();
-                                        };
-                                        reader.readAsDataURL(file);
-                                    }
-                                };
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            void insertEditorImageFromFile(editor, file)
+                                                .then(() => onClose())
+                                                .catch((error) => console.error(error));
+                                        }
+                                    };
                                 input.click();
                             }}
                         >
@@ -340,7 +337,7 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
             <div className="menu-item-group">
                 <div
                     className="menu-item"
-                    onClick={() => runAndClose(() => editor?.chain().focus().unsetAllMarks().clearNodes().run())}
+                    onClick={() => runAndClose(() => runEditorCommand(editor, 'clearFormatting'))}
                 >
                     <span className="menu-item-icon">🧹</span>
                     <span className="menu-item-text">Clear formatting</span>

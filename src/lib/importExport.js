@@ -1,5 +1,3 @@
-export const STORAGE_KEY = 'h-note-storage';
-
 const isStringOrNull = (value) => typeof value === 'string' || value === null;
 const isNumberOrMissing = (value) => value === undefined || Number.isFinite(value);
 
@@ -79,14 +77,4 @@ export const downloadJson = (filename, data) => {
 export const parseImportedJsonText = (text) => {
   const parsed = JSON.parse(text);
   return normalizeDataBundle(parsed);
-};
-
-export const parseLegacyLocalStorage = (raw) => {
-  if (!raw) {
-    return { folders: [], notes: [] };
-  }
-
-  const parsed = JSON.parse(raw);
-  const state = parsed?.state ?? parsed;
-  return normalizeDataBundle(state);
 };

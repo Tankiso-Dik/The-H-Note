@@ -2,6 +2,8 @@ import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'rea
 import { useMutation, useQuery } from 'convex/react';
 import Sidebar from './components/Sidebar';
 import MainGrid from './components/MainGrid';
+import ConfirmDialog from './components/ConfirmDialog';
+import StatusToast from './components/StatusToast';
 import {
     createExportBundle,
     downloadJson,
@@ -47,6 +49,33 @@ const loadDraftMap = () => {
     return parsed;
 };
 
+const createStatusNotice = (message, tone = 'info') => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    message,
+    tone,
+});
+
+const collectDescendantFolderIds = (folders, folderId) => {
+    const ids = new Set([folderId]);
+    const queue = [folderId];
+
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        const children = folders.filter((folder) => folder.parentId === currentId);
+
+        children.forEach((child) => {
+            if (ids.has(child.id)) {
+                return;
+            }
+
+            ids.add(child.id);
+            queue.push(child.id);
+        });
+    }
+
+    return ids;
+};
+
 function App() {
     const data = useQuery('notes:getAll');
     const ensureBootstrapData = useMutation('notes:ensureBootstrapData');
@@ -67,7 +96,8 @@ function App() {
     const [selectedFolderId, setSelectedFolderId] = useState('folder-1');
     const [activeNoteId, setActiveNoteId] = useState(null);
     const [renamingId, setRenamingId] = useState(null);
-    const [dataStatus, setDataStatus] = useState('');
+    const [statusNotice, setStatusNotice] = useState(null);
+    const [deleteConfirmation, setDeleteConfirmation] = useState(null);
     const [isSlowLoad, setIsSlowLoad] = useState(false);
     const [pendingFolders, setPendingFolders] = useState([]);
     const [pendingNotes, setPendingNotes] = useState([]);
@@ -78,11 +108,11 @@ function App() {
 
     const bootstrappedRef = useRef(false);
     const pendingContentSavesRef = useRef(new Map());
-    const notesRef = useRef(notes);
+    const noteEntitiesRef = useRef([]);
 
     useEffect(() => {
-        notesRef.current = notes;
-    }, [notes]);
+        noteEntitiesRef.current = [...notes, ...pendingNotes];
+    }, [notes, pendingNotes]);
 
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
@@ -112,7 +142,7 @@ function App() {
             ensureBootstrapData().catch((error) => {
                 bootstrappedRef.current = false;
                 console.error(error);
-                setDataStatus('Could not bootstrap notes. Check your Convex setup.');
+                setStatusNotice(createStatusNotice('Could not bootstrap notes. Check your Convex setup.', 'error'));
             });
             return;
         }
@@ -198,21 +228,25 @@ function App() {
     }, [data]);
 
     useEffect(() => {
-        if (!dataStatus) {
+        if (!statusNotice?.id) {
             return;
         }
 
         const timeoutId = window.setTimeout(() => {
-            setDataStatus((current) => (current === dataStatus ? '' : current));
+            setStatusNotice((current) => (current?.id === statusNotice.id ? null : current));
         }, 4200);
 
         return () => {
             window.clearTimeout(timeoutId);
         };
-    }, [dataStatus]);
+    }, [statusNotice]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    };
+
+    const showStatus = (message, tone = 'info') => {
+        setStatusNotice(createStatusNotice(message, tone));
     };
 
     const clearDraft = (noteId) => {
@@ -227,8 +261,34 @@ function App() {
         });
     };
 
-    const persistNote = async (note) => {
-        await upsertNote({ note });
+    const persistFolder = async (folder, options = {}) => {
+        const { errorMessage } = options;
+
+        try {
+            await upsertFolder({ folder });
+            return true;
+        } catch (error) {
+            console.error(error);
+            if (errorMessage) {
+                showStatus(errorMessage, 'error');
+            }
+            return false;
+        }
+    };
+
+    const persistNote = async (note, options = {}) => {
+        const { errorMessage } = options;
+
+        try {
+            await upsertNote({ note });
+            return true;
+        } catch (error) {
+            console.error(error);
+            if (errorMessage) {
+                showStatus(errorMessage, 'error');
+            }
+            return false;
+        }
     };
 
     const allFolders = useMemo(() => {
@@ -281,7 +341,7 @@ function App() {
 
     const handleAddNote = (title, folderId, isTemplate = false, content = '') => {
         if (!folderId) {
-            setDataStatus('Select a folder before creating a note.');
+            showStatus('Select a folder before creating a note.', 'warning');
             return null;
         }
 
@@ -300,6 +360,8 @@ function App() {
         setRenamingId(null);
         void persistNote({
             ...note,
+        }, {
+            errorMessage: `Could not create note "${title}".`,
         });
         return id;
     };
@@ -311,13 +373,13 @@ function App() {
         const note = notes.find((item) => item.id === id);
 
         if (pendingFolder) {
-            void upsertFolder({
-                folder: {
-                    id: pendingFolder.id,
-                    name: newName,
-                    parentId: pendingFolder.parentId,
-                    sortOrder: pendingFolder.sortOrder,
-                },
+            void persistFolder({
+                id: pendingFolder.id,
+                name: newName,
+                parentId: pendingFolder.parentId,
+                sortOrder: pendingFolder.sortOrder,
+            }, {
+                errorMessage: `Could not save folder "${newName}".`,
             });
             setPendingFolders((prev) => prev.map((item) => (
                 item.id === id ? { ...item, name: newName } : item
@@ -325,13 +387,13 @@ function App() {
         }
 
         if (folder) {
-            void upsertFolder({
-                folder: {
-                    id: folder.id,
-                    name: newName,
-                    parentId: folder.parentId,
-                    sortOrder: folder.sortOrder,
-                },
+            void persistFolder({
+                id: folder.id,
+                name: newName,
+                parentId: folder.parentId,
+                sortOrder: folder.sortOrder,
+            }, {
+                errorMessage: `Could not rename folder "${folder.name}".`,
             });
         }
 
@@ -342,6 +404,8 @@ function App() {
                 ...sourceNote,
                 content: typeof draftContent === 'string' ? draftContent : sourceNote.content,
                 title: newName,
+            }, {
+                errorMessage: `Could not rename note "${sourceNote.title}".`,
             });
 
             if (pendingNote) {
@@ -354,7 +418,7 @@ function App() {
         setRenamingId(null);
     };
 
-    const handleDelete = (id) => {
+    const performDelete = (id) => {
         const pendingFolder = pendingFolders.find((item) => item.id === id);
         const folder = folders.find((item) => item.id === id);
         const pendingNote = pendingNotes.find((item) => item.id === id);
@@ -369,20 +433,32 @@ function App() {
         }
 
         if (folder) {
-            void deleteFolderRecursive({ folderId: folder.id }).then(() => {
-                if (selectedFolderId === folder.id) {
-                    setSelectedFolderId(null);
-                }
-            });
+            void deleteFolderRecursive({ folderId: folder.id })
+                .then(() => {
+                    if (selectedFolderId === folder.id) {
+                        setSelectedFolderId(null);
+                    }
+                    showStatus(`Deleted folder "${folder.name}".`, 'success');
+                })
+                .catch((error) => {
+                    console.error(error);
+                    showStatus(`Could not delete folder "${folder.name}".`, 'error');
+                });
         }
 
         if (note) {
-            void deleteNote({ noteId: note.id }).then(() => {
-                if (activeNoteId === note.id) {
-                    setActiveNoteId(null);
-                }
-                clearDraft(note.id);
-            });
+            void deleteNote({ noteId: note.id })
+                .then(() => {
+                    if (activeNoteId === note.id) {
+                        setActiveNoteId(null);
+                    }
+                    clearDraft(note.id);
+                    showStatus(`Deleted note "${note.title}".`, 'success');
+                })
+                .catch((error) => {
+                    console.error(error);
+                    showStatus(`Could not delete note "${note.title}".`, 'error');
+                });
         }
 
         if (pendingNote) {
@@ -391,20 +467,64 @@ function App() {
                 setActiveNoteId(null);
             }
             clearDraft(pendingNote.id);
+            showStatus(`Deleted note "${pendingNote.title}".`, 'success');
         }
+    };
+
+    const handleDeleteRequest = (id) => {
+        const folder = [...pendingFolders, ...folders].find((item) => item.id === id);
+        const note = [...pendingNotes, ...notes].find((item) => item.id === id);
+
+        if (folder) {
+            const relatedFolderIds = collectDescendantFolderIds(allFolders, folder.id);
+            const nestedFolderCount = Math.max(0, relatedFolderIds.size - 1);
+            const noteCount = allNotesForDisplay.filter((item) => relatedFolderIds.has(item.folderId)).length;
+            const details = [];
+
+            if (nestedFolderCount > 0) {
+                details.push(`${nestedFolderCount} nested folder${nestedFolderCount === 1 ? '' : 's'}`);
+            }
+            if (noteCount > 0) {
+                details.push(`${noteCount} note${noteCount === 1 ? '' : 's'}`);
+            }
+
+            setDeleteConfirmation({
+                id,
+                title: `Delete "${folder.name}"?`,
+                message: details.length > 0
+                    ? 'This removes the folder and everything inside it.'
+                    : 'This folder will be removed immediately.',
+                details: details.length > 0 ? `Also removes ${details.join(' and ')}.` : '',
+                confirmLabel: 'Delete folder',
+            });
+            return;
+        }
+
+        if (note) {
+            setDeleteConfirmation({
+                id,
+                title: `Delete "${note.title}"?`,
+                message: 'This note will be removed immediately.',
+                details: 'There is no undo for this action yet.',
+                confirmLabel: 'Delete note',
+            });
+            return;
+        }
+
+        performDelete(id);
     };
 
     const handleCancelRename = (id) => {
         const pendingFolder = pendingFolders.find((item) => item.id === id);
 
         if (pendingFolder) {
-            void upsertFolder({
-                folder: {
-                    id: pendingFolder.id,
-                    name: pendingFolder.name,
-                    parentId: pendingFolder.parentId,
-                    sortOrder: pendingFolder.sortOrder,
-                },
+            void persistFolder({
+                id: pendingFolder.id,
+                name: pendingFolder.name,
+                parentId: pendingFolder.parentId,
+                sortOrder: pendingFolder.sortOrder,
+            }, {
+                errorMessage: `Could not create folder "${pendingFolder.name}".`,
             });
         }
 
@@ -420,6 +540,8 @@ function App() {
         void persistNote({
             ...note,
             isTemplate: !note.isTemplate,
+        }, {
+            errorMessage: `Could not update template state for "${note.title}".`,
         });
     };
 
@@ -435,7 +557,7 @@ function App() {
         }
 
         const timeoutId = window.setTimeout(() => {
-            const latestNote = notesRef.current.find((note) => note.id === id);
+            const latestNote = noteEntitiesRef.current.find((note) => note.id === id);
             if (!latestNote) {
                 clearDraft(id);
                 pendingContentSavesRef.current.delete(id);
@@ -461,7 +583,7 @@ function App() {
                 })
                 .catch((error) => {
                     console.error(error);
-                    setDataStatus('Sync issue: draft kept locally, retrying on next change.');
+                    showStatus('Sync issue: draft kept locally, retrying on next change.', 'warning');
                 })
                 .finally(() => {
                     pendingContentSavesRef.current.delete(id);
@@ -499,14 +621,37 @@ function App() {
             )));
         }
 
-        void persistNote(merged);
+            void persistNote(merged, {
+            errorMessage: `Could not update note "${merged.title}".`,
+        });
+    };
+
+    const handleImportNote = ({ title, content, sourceName, notice }) => {
+        if (!activeNote?.folderId) {
+            showStatus('Select a folder before importing into a new note.', 'warning');
+            return;
+        }
+
+        const nextTitle = title?.trim() || 'Imported Note';
+        const createdId = handleAddNote(nextTitle, activeNote.folderId, false, content);
+
+        if (!createdId) {
+            return;
+        }
+
+        if (notice) {
+            showStatus(notice, 'warning');
+            return;
+        }
+
+        showStatus(`Imported ${sourceName} into "${nextTitle}".`, 'success');
     };
 
     const handleExportData = () => {
         const bundle = createExportBundle({ folders, notes });
         const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         downloadJson(`h-note-export-${stamp}.json`, bundle);
-        setDataStatus('Exported notes to JSON file.');
+        showStatus('Exported notes to a JSON file.', 'success');
     };
 
     const handleImportBundle = async (bundle) => {
@@ -548,7 +693,7 @@ function App() {
             });
         } catch (error) {
             console.error(error);
-            setDataStatus('Could not save folder order. Refresh to resync.');
+            showStatus('Could not save folder order. Refresh to resync.', 'error');
         }
     };
 
@@ -557,10 +702,10 @@ function App() {
             const text = await file.text();
             const bundle = parseImportedJsonText(text);
             await handleImportBundle(bundle);
-            setDataStatus(`Imported ${bundle.notes.length} notes from ${file.name}.`);
+            showStatus(`Imported ${bundle.notes.length} notes from ${file.name}.`, 'success');
         } catch (error) {
             console.error(error);
-            setDataStatus('Import failed. Check that your JSON has folders[] and notes[].');
+            showStatus('Import failed. Check that your JSON has folders[] and notes[].', 'error');
         }
     };
 
@@ -589,7 +734,7 @@ function App() {
     }
 
     return (
-        <div className="app-container">
+        <div className={`app-container ${activeNote ? 'editor-mode' : 'browser-mode'}`}>
             {!activeNote && (
                 <Sidebar
                     folders={allFolders}
@@ -604,11 +749,10 @@ function App() {
                     onRename={handleRename}
                     onCancelRename={handleCancelRename}
                     pendingFolderCreations={pendingFolderCreations}
-                    onDelete={handleDelete}
+                    onDelete={handleDeleteRequest}
                     onReorderFolders={handleReorderFolders}
                     onExportData={handleExportData}
                     onImportDataFile={handleImportDataFile}
-                    dataStatus={dataStatus}
                 />
             )}
             {activeNote ? (
@@ -619,6 +763,8 @@ function App() {
                         onBack={() => setActiveNoteId(null)}
                         theme={theme}
                         onToggleTheme={toggleTheme}
+                        onStatusMessage={showStatus}
+                        onImportNote={handleImportNote}
                     />
                 </Suspense>
             ) : (
@@ -636,13 +782,29 @@ function App() {
                     onOpenNote={setActiveNoteId}
                     renamingId={renamingId}
                     onRename={handleRename}
-                    onDelete={handleDelete}
+                    onDelete={handleDeleteRequest}
                     onToggleTemplate={handleToggleTemplate}
                     setRenamingId={setRenamingId}
                     theme={theme}
                     onToggleTheme={toggleTheme}
                 />
             )}
+            <ConfirmDialog
+                open={Boolean(deleteConfirmation)}
+                title={deleteConfirmation?.title}
+                message={deleteConfirmation?.message}
+                details={deleteConfirmation?.details}
+                confirmLabel={deleteConfirmation?.confirmLabel}
+                destructive
+                onConfirm={() => {
+                    if (deleteConfirmation?.id) {
+                        performDelete(deleteConfirmation.id);
+                    }
+                    setDeleteConfirmation(null);
+                }}
+                onCancel={() => setDeleteConfirmation(null)}
+            />
+            <StatusToast notice={statusNotice} onDismiss={() => setStatusNotice(null)} />
         </div>
     );
 }

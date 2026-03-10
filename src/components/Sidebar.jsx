@@ -150,7 +150,6 @@ const Sidebar = ({
   onReorderFolders,
   onExportData,
   onImportDataFile,
-  dataStatus,
 }) => {
   const rootFolders = folders.filter((folder) => folder.parentId === null);
   const [plusMenu, setPlusMenu] = useState(null);
@@ -325,7 +324,6 @@ const Sidebar = ({
       </div>
 
       <div className="sidebar-footer" ref={plusAreaRef}>
-        {dataStatus ? <div className="data-status">{dataStatus}</div> : null}
         <button
           className="sidebar-plus-btn"
           title="Data options"
@@ -391,15 +389,6 @@ const Sidebar = ({
           flex-direction: column;
           align-items: flex-start;
           gap: 8px;
-        }
-
-        .data-status {
-          font-size: 12px;
-          color: var(--editor-text-color);
-          opacity: 0.8;
-          line-height: 1.4;
-          word-break: break-word;
-          padding: 0 2px;
         }
 
         .sidebar-plus-btn {

@@ -6,12 +6,18 @@ const getEditorPlainText = (editor) => editor?.getText({ blockSeparator: '\n\n' 
 
 const writeClipboardContent = async ({ text, html }) => {
     if (navigator.clipboard?.write && window.ClipboardItem && html) {
-        const item = new window.ClipboardItem({
-            'text/plain': new Blob([text], { type: 'text/plain' }),
-            'text/html': new Blob([html], { type: 'text/html' }),
-        });
-        await navigator.clipboard.write([item]);
-        return;
+        try {
+            const item = new window.ClipboardItem({
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+                'text/html': new Blob([html], { type: 'text/html' }),
+            });
+            await navigator.clipboard.write([item]);
+            return;
+        } catch (error) {
+            if (!navigator.clipboard?.writeText) {
+                throw error;
+            }
+        }
     }
 
     if (navigator.clipboard?.writeText) {
@@ -22,7 +28,7 @@ const writeClipboardContent = async ({ text, html }) => {
     throw new Error('Clipboard access is unavailable.');
 };
 
-const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
+const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) => {
     const [contextMenu, setContextMenu] = useState(null);
     const [draftTitle, setDraftTitle] = useState(noteTitle || '');
     const [isCanvasHovered, setIsCanvasHovered] = useState(false);
@@ -96,6 +102,7 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
             showCopiedState('document');
         } catch (error) {
             console.error(error);
+            onStatusMessage?.('Clipboard access is unavailable in this browser.', 'error');
         }
     };
 
@@ -315,6 +322,12 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle }) => {
                     .document-copy {
                         top: 10px;
                         right: 10px;
+                    }
+
+                    .canvas-copy-btn {
+                        opacity: 1;
+                        pointer-events: auto;
+                        transform: none;
                     }
                 }
 

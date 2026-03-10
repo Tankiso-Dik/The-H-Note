@@ -24,7 +24,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import { all, createLowlight } from 'lowlight';
+import { common, createLowlight } from 'lowlight';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { Image } from '@tiptap/extension-image';
 import { FileHandler } from '@tiptap/extension-file-handler';
@@ -35,10 +35,10 @@ import { Link } from '@tiptap/extension-link';
 import { Code } from '@tiptap/extension-code';
 import { Blockquote } from '@tiptap/extension-blockquote';
 import { Markdown } from 'tiptap-markdown';
-import { TableNavigation } from './TableNavigation';
 import EditorRibbon from './EditorRibbon';
+import ImportNoteDialog from './ImportNoteDialog';
 
-const lowlight = createLowlight(all);
+const lowlight = createLowlight(common);
 import EditorWorkspace from './EditorWorkspace';
 import { FontSize } from '../../extensions/FontSize';
 import { plainTextToHtml, readImportedNoteFile } from '../../lib/noteFileIO';
@@ -182,7 +182,8 @@ const looksStructuredPlainText = (text) => {
     return /\n{2,}/.test(text) || /\t/.test(text);
 };
 
-const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) => {
+const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onStatusMessage, onImportNote }) => {
+    const [pendingImport, setPendingImport] = React.useState(null);
     const editor = useEditor({
         extensions: [
             Document,
@@ -226,7 +227,6 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
             TableRow,
             TableHeader,
             TableCell,
-            TableNavigation,
             Gapcursor,
             ListKeymap,
             Image.configure({
@@ -337,25 +337,64 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
 
     if (!note) return null;
 
-    const handleOpenFile = async (file) => {
-        if (!editor || !file) {
+    const showImportStatus = (fileName, notice) => {
+        if (notice) {
+            onStatusMessage?.(notice, 'warning');
             return;
         }
 
-        const imported = await readImportedNoteFile(file);
-        const content = imported.format === 'markdown'
-            ? imported.content
-            : plainTextToHtml(imported.content);
+        onStatusMessage?.(`Imported ${fileName}.`, 'success');
+    };
 
-        editor.commands.setContent(content);
-
-        if (imported.title && imported.title !== note.title) {
-            onUpdateNote(note.id, { title: imported.title });
+    const handleOpenFile = async (file) => {
+        if (!file) {
+            return;
         }
 
-        if (imported.notice) {
-            window.alert(imported.notice);
+        try {
+            const imported = await readImportedNoteFile(file);
+            const content = imported.format === 'markdown'
+                ? imported.content
+                : plainTextToHtml(imported.content);
+
+            setPendingImport({
+                content,
+                fileName: file.name,
+                imported,
+            });
+        } catch (error) {
+            console.error(error);
+            onStatusMessage?.(error?.message || `Could not import ${file.name}.`, 'error');
         }
+    };
+
+    const handleReplaceCurrentNote = () => {
+        if (!editor || !pendingImport) {
+            return;
+        }
+
+        editor.commands.setContent(pendingImport.content);
+
+        if (pendingImport.imported.title && pendingImport.imported.title !== note.title) {
+            onUpdateNote(note.id, { title: pendingImport.imported.title });
+        }
+
+        showImportStatus(pendingImport.fileName, pendingImport.imported.notice);
+        setPendingImport(null);
+    };
+
+    const handleImportAsNewNote = () => {
+        if (!pendingImport) {
+            return;
+        }
+
+        onImportNote?.({
+            title: pendingImport.imported.title,
+            content: pendingImport.content,
+            sourceName: pendingImport.fileName,
+            notice: pendingImport.imported.notice,
+        });
+        setPendingImport(null);
     };
 
     return (
@@ -373,8 +412,18 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme }) =
                     editor={editor}
                     noteTitle={note.title}
                     onRenameTitle={(title) => onUpdateNote(note.id, { title })}
+                    onStatusMessage={onStatusMessage}
                 />
             </div>
+            <ImportNoteDialog
+                open={Boolean(pendingImport)}
+                fileName={pendingImport?.fileName}
+                currentNoteTitle={note.title}
+                importNotice={pendingImport?.imported?.notice}
+                onReplaceCurrent={handleReplaceCurrentNote}
+                onImportAsNew={handleImportAsNewNote}
+                onCancel={() => setPendingImport(null)}
+            />
 
             <style>{`
                 .note-editor-root {

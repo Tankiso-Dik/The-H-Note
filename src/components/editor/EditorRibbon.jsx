@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { exportMarkdownFile, exportPdfDocument, exportPlainTextFile } from '../../lib/noteExport';
 import LinkEditorPopover from './LinkEditorPopover';
+import { applyEditorLink, runEditorCommand } from './editorActions';
 
 const RibbonGroup = ({ children }) => (
     <div className="ribbon-group">
@@ -161,13 +162,7 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
     };
 
     const applyLink = (url) => {
-        if (!url) {
-            editor?.chain().focus().unsetLink().run();
-            setIsLinkEditorOpen(false);
-            return;
-        }
-
-        editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        applyEditorLink(editor, url);
         setIsLinkEditorOpen(false);
     };
 
@@ -361,22 +356,22 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
                 <div className="ribbon-grid">
                     <button
                         className={`ribbon-button-mini ${editor?.isActive('bulletList') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                        onClick={() => runEditorCommand(editor, 'toggleBulletList')}
                         title="Bullet List"
                     >•</button>
                     <button
                         className={`ribbon-button-mini ${editor?.isActive('orderedList') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                        onClick={() => runEditorCommand(editor, 'toggleOrderedList')}
                         title="Numbered List"
                     >1.</button>
                     <button
                         className={`ribbon-button-mini ${editor?.isActive('taskList') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleTaskList().run()}
+                        onClick={() => runEditorCommand(editor, 'toggleTaskList')}
                         title="Task List"
                     >☑</button>
                     <button
                         className={`ribbon-button-mini ${editor?.isActive('blockquote') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                        onClick={() => runEditorCommand(editor, 'toggleBlockquote')}
                         title="Blockquote"
                     >"</button>
                     <div className="ribbon-inline-popover" ref={linkMenuRef}>
@@ -445,7 +440,7 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
                     </button>
                     <button
                         className={`ribbon-button small ${editor?.isActive('codeBlock') ? 'active' : ''}`}
-                        onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                        onClick={() => runEditorCommand(editor, 'toggleCodeBlock')}
                         title="Code Block"
                         type="button"
                     >
@@ -724,7 +719,8 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
 
                 .ribbon-select {
                     font-size: 11px;
-                    padding: 2px;
+                    min-height: 30px;
+                    padding: 2px 4px;
                     border: 1px solid var(--input-border);
                     border-radius: 2px;
                     background: var(--input-bg);
@@ -818,14 +814,51 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
                 }
 
                 @media (max-width: 680px) {
+                    .editor-ribbon {
+                        flex-wrap: nowrap;
+                        overflow-x: auto;
+                        overflow-y: hidden;
+                        align-items: stretch;
+                        gap: 0;
+                        padding-bottom: 12px;
+                    }
+
                     .ribbon-file-btn,
                     .ribbon-back-btn {
-                        flex: 1;
+                        min-height: 42px;
+                    }
+
+                    .ribbon-left-rail {
+                        width: auto;
+                        min-width: 128px;
+                        flex-direction: column;
+                    }
+
+                    .ribbon-group {
+                        min-width: max-content;
+                        padding-left: 6px;
+                        padding-right: 6px;
                     }
 
                     .ribbon-theme-toggle {
-                        width: 100%;
-                        justify-content: flex-end;
+                        width: auto;
+                        justify-content: center;
+                        padding-left: 10px;
+                    }
+
+                    .ribbon-button-mini {
+                        width: 36px;
+                        height: 36px;
+                    }
+
+                    .ribbon-select {
+                        min-height: 36px;
+                        font-size: 12px;
+                    }
+
+                    .compact-tools .ribbon-button,
+                    .theme-toggle-btn {
+                        min-height: 38px;
                     }
                 }
             `}</style>

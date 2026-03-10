@@ -1,5 +1,3 @@
-import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
-
 const escapeHtml = (value) => value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -34,7 +32,11 @@ export const inferTitleFromFilename = (filename) => {
 };
 
 const extractPdfText = async (file) => {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const [pdfjs, pdfWorker] = await Promise.all([
+        import('pdfjs-dist/legacy/build/pdf.mjs'),
+        import('pdfjs-dist/legacy/build/pdf.worker.mjs?url'),
+    ]);
+    const pdfWorkerUrl = pdfWorker.default;
     pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
     const buffer = await file.arrayBuffer();
