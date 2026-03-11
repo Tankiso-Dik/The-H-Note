@@ -162,6 +162,64 @@ const getNoteDocByNoteId = async (db, noteId) => {
     .unique();
 };
 
+const validateImportBundle = ({ folders, notes }) => {
+  const folderById = new Map();
+
+  for (const folder of folders) {
+    if (folderById.has(folder.id)) {
+      throw new Error(`Duplicate folder ID "${folder.id}" in import bundle.`);
+    }
+
+    folderById.set(folder.id, folder);
+  }
+
+  for (const folder of folders) {
+    if (folder.parentId && !folderById.has(folder.parentId)) {
+      throw new Error(`Folder "${folder.id}" references missing parent "${folder.parentId}".`);
+    }
+  }
+
+  const visited = new Set();
+  const visiting = new Set();
+
+  const visitFolder = (folderId) => {
+    if (visited.has(folderId)) {
+      return;
+    }
+
+    if (visiting.has(folderId)) {
+      throw new Error(`Folder cycle detected for "${folderId}".`);
+    }
+
+    visiting.add(folderId);
+
+    const folder = folderById.get(folderId);
+    if (folder?.parentId) {
+      visitFolder(folder.parentId);
+    }
+
+    visiting.delete(folderId);
+    visited.add(folderId);
+  };
+
+  for (const folderId of folderById.keys()) {
+    visitFolder(folderId);
+  }
+
+  const noteIds = new Set();
+  for (const note of notes) {
+    if (noteIds.has(note.id)) {
+      throw new Error(`Duplicate note ID "${note.id}" in import bundle.`);
+    }
+
+    noteIds.add(note.id);
+
+    if (!folderById.has(note.folderId)) {
+      throw new Error(`Note "${note.id}" references missing folder "${note.folderId}".`);
+    }
+  }
+};
+
 const collectFolderTreeIds = async (db, rootFolderId) => {
   const toVisit = [rootFolderId];
   const collected = new Set();
@@ -341,6 +399,8 @@ export const replaceAll = mutation({
     notes: v.array(noteInput),
   },
   handler: async (ctx, { folders, notes }) => {
+    validateImportBundle({ folders, notes });
+
     const existingFolders = await ctx.db.query('folders').collect();
     for (const folderDoc of existingFolders) {
       await ctx.db.delete(folderDoc._id);

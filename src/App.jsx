@@ -101,6 +101,7 @@ function App() {
     const [isSlowLoad, setIsSlowLoad] = useState(false);
     const [pendingFolders, setPendingFolders] = useState([]);
     const [pendingNotes, setPendingNotes] = useState([]);
+    const [noteOverrides, setNoteOverrides] = useState({});
 
     const [theme, setTheme] = useState(() => {
         return localStorage.getItem('app-theme') || 'light';
@@ -108,11 +109,7 @@ function App() {
 
     const bootstrappedRef = useRef(false);
     const pendingContentSavesRef = useRef(new Map());
-    const noteEntitiesRef = useRef([]);
-
-    useEffect(() => {
-        noteEntitiesRef.current = [...notes, ...pendingNotes];
-    }, [notes, pendingNotes]);
+    const noteSnapshotRef = useRef(new Map());
 
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
@@ -249,6 +246,35 @@ function App() {
         setStatusNotice(createStatusNotice(message, tone));
     };
 
+    const restoreNoteOverride = (noteId, override) => {
+        setNoteOverrides((prev) => {
+            if (override === undefined) {
+                if (!(noteId in prev)) {
+                    return prev;
+                }
+
+                const next = { ...prev };
+                delete next[noteId];
+                return next;
+            }
+
+            return {
+                ...prev,
+                [noteId]: override,
+            };
+        });
+    };
+
+    const mergeNoteOverride = (noteId, patch) => {
+        setNoteOverrides((prev) => ({
+            ...prev,
+            [noteId]: {
+                ...(prev[noteId] || {}),
+                ...patch,
+            },
+        }));
+    };
+
     const clearDraft = (noteId) => {
         setLocalDrafts((prev) => {
             if (!(noteId in prev)) {
@@ -293,6 +319,7 @@ function App() {
         if (!targetIds) {
             setPendingNotes([]);
             setLocalDrafts({});
+            setNoteOverrides({});
             setActiveNoteId(null);
             return;
         }
@@ -312,38 +339,69 @@ function App() {
 
             return changed ? next : prev;
         });
+        setNoteOverrides((prev) => {
+            let changed = false;
+            const next = { ...prev };
+
+            targetIdSet.forEach((noteId) => {
+                if (noteId in next) {
+                    delete next[noteId];
+                    changed = true;
+                }
+            });
+
+            return changed ? next : prev;
+        });
 
         if (activeNoteId && targetIdSet.has(activeNoteId)) {
             setActiveNoteId(null);
         }
     };
 
+    const rollbackPendingFolderCreation = (folderId, parentId = null) => {
+        setPendingFolders((prev) => prev.filter((folder) => folder.id !== folderId));
+        setSelectedFolderId((current) => (current === folderId ? parentId : current));
+        setRenamingId((current) => (current === folderId ? null : current));
+    };
+
+    const rollbackPendingNoteCreation = (noteId) => {
+        cancelPendingSave(noteId);
+        clearDraft(noteId);
+        restoreNoteOverride(noteId, undefined);
+        setPendingNotes((prev) => prev.filter((note) => note.id !== noteId));
+        setActiveNoteId((current) => (current === noteId ? null : current));
+    };
+
     const persistFolder = async (folder, options = {}) => {
-        const { errorMessage } = options;
+        const { errorMessage, onError, onSuccess } = options;
 
         try {
             await upsertFolder({ folder });
+            onSuccess?.();
             return true;
         } catch (error) {
             console.error(error);
             if (errorMessage) {
                 showStatus(errorMessage, 'error');
             }
+            onError?.(error);
             return false;
         }
     };
 
     const persistNote = async (note, options = {}) => {
-        const { errorMessage } = options;
+        const { errorMessage, onError, onSuccess } = options;
 
         try {
             await upsertNote({ note });
+            onSuccess?.();
             return true;
         } catch (error) {
             console.error(error);
             if (errorMessage) {
                 showStatus(errorMessage, 'error');
             }
+            onError?.(error);
             return false;
         }
     };
@@ -358,9 +416,54 @@ function App() {
         return acc;
     }, {});
 
-    const persistedNoteIds = new Set(notes.map((note) => note.id));
-    const optimisticNotes = pendingNotes.filter((note) => !persistedNoteIds.has(note.id));
-    const allNotesForDisplay = [...notes, ...optimisticNotes];
+    const allNotesForDisplay = useMemo(() => {
+        const mergedPersistedNotes = notes.map((note) => (
+            noteOverrides[note.id] ? { ...note, ...noteOverrides[note.id] } : note
+        ));
+        const persistedNoteIds = new Set(mergedPersistedNotes.map((note) => note.id));
+        const optimisticNotes = pendingNotes.filter((note) => !persistedNoteIds.has(note.id));
+        return [...mergedPersistedNotes, ...optimisticNotes];
+    }, [notes, pendingNotes, noteOverrides]);
+
+    useEffect(() => {
+        const pendingNoteIds = new Set(pendingNotes.map((note) => note.id));
+
+        setNoteOverrides((prev) => {
+            const persistedById = new Map(notes.map((note) => [note.id, note]));
+            let changed = false;
+            const next = { ...prev };
+
+            Object.entries(prev).forEach(([noteId, override]) => {
+                const persisted = persistedById.get(noteId);
+                if (!persisted) {
+                    if (!pendingNoteIds.has(noteId)) {
+                        delete next[noteId];
+                        changed = true;
+                    }
+                    return;
+                }
+
+                const isApplied = Object.entries(override).every(([key, value]) => persisted[key] === value);
+                if (isApplied) {
+                    delete next[noteId];
+                    changed = true;
+                }
+            });
+
+            return changed ? next : prev;
+        });
+    }, [notes, pendingNotes]);
+
+    useEffect(() => {
+        noteSnapshotRef.current = new Map(
+            allNotesForDisplay.map((note) => [
+                note.id,
+                typeof localDrafts[note.id] === 'string'
+                    ? { ...note, content: localDrafts[note.id] }
+                    : note,
+            ])
+        );
+    }, [allNotesForDisplay, localDrafts]);
 
     const currentFolder = allFolders.find((folder) => folder.id === selectedFolderId) ?? null;
     const currentNotes = allNotesForDisplay.filter((note) => note.folderId === selectedFolderId);
@@ -372,6 +475,22 @@ function App() {
         activeNoteBase && typeof activeDraft === 'string'
             ? { ...activeNoteBase, content: activeDraft }
             : activeNoteBase;
+
+    const getLatestNoteSnapshot = (noteId) => {
+        const cached = noteSnapshotRef.current.get(noteId);
+        if (cached) {
+            return cached;
+        }
+
+        const current = allNotesForDisplay.find((note) => note.id === noteId);
+        if (!current) {
+            return null;
+        }
+
+        return typeof localDrafts[noteId] === 'string'
+            ? { ...current, content: localDrafts[noteId] }
+            : current;
+    };
 
     const handleAddFolder = (name, parentId, options = {}) => {
         const { navigateToFolder = true } = options;
@@ -415,12 +534,59 @@ function App() {
         setSelectedFolderId(folderId);
         setActiveNoteId(id);
         setRenamingId(null);
-        void persistNote({
-            ...note,
-        }, {
+        void persistNote(note, {
             errorMessage: `Could not create note "${title}".`,
+            onError: () => rollbackPendingNoteCreation(id),
         });
         return id;
+    };
+
+    const applyNoteUpdates = (id, updates) => {
+        const existing = getLatestNoteSnapshot(id);
+        if (!existing) {
+            return;
+        }
+
+        const hasOnlyContentUpdate =
+            Object.keys(updates).length === 1 && Object.prototype.hasOwnProperty.call(updates, 'content');
+
+        if (hasOnlyContentUpdate) {
+            queueDeferredContentSave(id, updates.content);
+            return;
+        }
+
+        const merged = {
+            ...existing,
+            ...updates,
+        };
+
+        const isPending = pendingNotes.some((note) => note.id === id);
+
+        if (isPending) {
+            setPendingNotes((prev) => prev.map((note) => (
+                note.id === id ? merged : note
+            )));
+
+            void persistNote(merged, {
+                errorMessage: `Could not update note "${merged.title}".`,
+                onError: () => {
+                    setPendingNotes((prev) => prev.map((note) => (
+                        note.id === id ? existing : note
+                    )));
+                },
+            });
+            return;
+        }
+
+        mergeNoteOverride(id, {
+            title: merged.title,
+            folderId: merged.folderId,
+            isTemplate: merged.isTemplate,
+        });
+
+        void persistNote(merged, {
+            errorMessage: `Could not update note "${merged.title}".`,
+        });
     };
 
     const handleRename = (id, newName) => {
@@ -430,17 +596,21 @@ function App() {
         const note = notes.find((item) => item.id === id);
 
         if (pendingFolder) {
-            void persistFolder({
+            const updatedFolder = {
                 id: pendingFolder.id,
                 name: newName,
                 parentId: pendingFolder.parentId,
                 sortOrder: pendingFolder.sortOrder,
-            }, {
-                errorMessage: `Could not save folder "${newName}".`,
-            });
+            };
+
             setPendingFolders((prev) => prev.map((item) => (
                 item.id === id ? { ...item, name: newName } : item
             )));
+
+            void persistFolder(updatedFolder, {
+                errorMessage: `Could not save folder "${newName}".`,
+                onError: () => rollbackPendingFolderCreation(id, pendingFolder.parentId),
+            });
         }
 
         if (folder) {
@@ -455,21 +625,7 @@ function App() {
         }
 
         if (pendingNote || note) {
-            const sourceNote = pendingNote || note;
-            const draftContent = localDrafts[sourceNote.id];
-            void persistNote({
-                ...sourceNote,
-                content: typeof draftContent === 'string' ? draftContent : sourceNote.content,
-                title: newName,
-            }, {
-                errorMessage: `Could not rename note "${sourceNote.title}".`,
-            });
-
-            if (pendingNote) {
-                setPendingNotes((prev) => prev.map((item) => (
-                    item.id === id ? { ...item, title: newName } : item
-                )));
-            }
+            applyNoteUpdates(id, { title: newName });
         }
 
         setRenamingId(null);
@@ -589,6 +745,7 @@ function App() {
                 sortOrder: pendingFolder.sortOrder,
             }, {
                 errorMessage: `Could not create folder "${pendingFolder.name}".`,
+                onError: () => rollbackPendingFolderCreation(id, pendingFolder.parentId),
             });
         }
 
@@ -601,12 +758,7 @@ function App() {
             return;
         }
 
-        void persistNote({
-            ...note,
-            isTemplate: !note.isTemplate,
-        }, {
-            errorMessage: `Could not update template state for "${note.title}".`,
-        });
+        applyNoteUpdates(id, { isTemplate: !note.isTemplate });
     };
 
     const queueDeferredContentSave = (id, content) => {
@@ -621,7 +773,7 @@ function App() {
         }
 
         const timeoutId = window.setTimeout(() => {
-            const latestNote = noteEntitiesRef.current.find((note) => note.id === id);
+            const latestNote = getLatestNoteSnapshot(id);
             if (!latestNote) {
                 clearDraft(id);
                 pendingContentSavesRef.current.delete(id);
@@ -634,7 +786,12 @@ function App() {
             };
 
             void persistNote(payload)
-                .then(() => {
+                .then((didPersist) => {
+                    if (!didPersist) {
+                        showStatus('Sync issue: draft kept locally, retrying on next change.', 'warning');
+                        return;
+                    }
+
                     setLocalDrafts((prev) => {
                         if (prev[id] !== content) {
                             return prev;
@@ -658,36 +815,7 @@ function App() {
     };
 
     const handleUpdateNote = (id, updates) => {
-        const existing = allNotesForDisplay.find((note) => note.id === id);
-        if (!existing) {
-            return;
-        }
-
-        const hasOnlyContentUpdate =
-            Object.keys(updates).length === 1 && Object.prototype.hasOwnProperty.call(updates, 'content');
-
-        if (hasOnlyContentUpdate) {
-            queueDeferredContentSave(id, updates.content);
-            return;
-        }
-
-        const draftContent = localDrafts[id];
-        const merged = {
-            ...existing,
-            ...(typeof draftContent === 'string' ? { content: draftContent } : {}),
-            ...updates,
-        };
-
-        const isPending = pendingNotes.some((note) => note.id === id);
-        if (isPending) {
-            setPendingNotes((prev) => prev.map((note) => (
-                note.id === id ? merged : note
-            )));
-        }
-
-            void persistNote(merged, {
-            errorMessage: `Could not update note "${merged.title}".`,
-        });
+        applyNoteUpdates(id, updates);
     };
 
     const handleImportNote = ({ title, content, sourceName, notice }) => {
@@ -728,6 +856,7 @@ function App() {
         setCachedBundle(bundle);
         localStorage.setItem(CACHE_KEY, JSON.stringify(bundle));
         setPendingFolders([]);
+        setNoteOverrides({});
         localStorage.setItem(DRAFTS_KEY, JSON.stringify({}));
 
         setSelectedFolderId(null);

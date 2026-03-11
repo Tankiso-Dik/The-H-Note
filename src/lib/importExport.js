@@ -41,6 +41,73 @@ const normalizeNote = (note) => {
   };
 };
 
+const validateFolderGraph = (folders) => {
+  const folderById = new Map();
+
+  folders.forEach((folder) => {
+    if (folderById.has(folder.id)) {
+      throw new Error(`Import contains duplicate folder ID "${folder.id}".`);
+    }
+
+    folderById.set(folder.id, folder);
+  });
+
+  folders.forEach((folder) => {
+    if (folder.parentId && !folderById.has(folder.parentId)) {
+      throw new Error(`Folder "${folder.name}" references missing parent "${folder.parentId}".`);
+    }
+  });
+
+  const visited = new Set();
+  const visiting = new Set();
+
+  const visit = (folderId) => {
+    if (visited.has(folderId)) {
+      return;
+    }
+
+    if (visiting.has(folderId)) {
+      throw new Error(`Import contains a folder cycle involving "${folderId}".`);
+    }
+
+    visiting.add(folderId);
+    const folder = folderById.get(folderId);
+    if (folder?.parentId) {
+      visit(folder.parentId);
+    }
+    visiting.delete(folderId);
+    visited.add(folderId);
+  };
+
+  folderById.forEach((_, folderId) => {
+    visit(folderId);
+  });
+
+  return folderById;
+};
+
+const validateNotes = (notes, folderById) => {
+  const noteIds = new Set();
+
+  notes.forEach((note) => {
+    if (noteIds.has(note.id)) {
+      throw new Error(`Import contains duplicate note ID "${note.id}".`);
+    }
+
+    noteIds.add(note.id);
+
+    if (!folderById.has(note.folderId)) {
+      throw new Error(`Note "${note.title}" references missing folder "${note.folderId}".`);
+    }
+  });
+};
+
+export const validateDataBundle = (bundle) => {
+  const folderById = validateFolderGraph(bundle.folders);
+  validateNotes(bundle.notes, folderById);
+  return bundle;
+};
+
 export const normalizeDataBundle = (bundle) => {
   const foldersRaw = Array.isArray(bundle?.folders) ? bundle.folders : [];
   const notesRaw = Array.isArray(bundle?.notes) ? bundle.notes : [];
@@ -91,5 +158,5 @@ export const parseImportedJsonText = (text) => {
     throw new Error('Import file contains invalid folder or note entries.');
   }
 
-  return normalized;
+  return validateDataBundle(normalized);
 };
