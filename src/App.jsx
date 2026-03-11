@@ -261,6 +261,63 @@ function App() {
         });
     };
 
+    const cancelPendingSave = (noteId) => {
+        const timeoutId = pendingContentSavesRef.current.get(noteId);
+        if (!timeoutId) {
+            return;
+        }
+
+        window.clearTimeout(timeoutId);
+        pendingContentSavesRef.current.delete(noteId);
+    };
+
+    const cancelPendingSaves = (noteIds = null) => {
+        if (!Array.isArray(noteIds)) {
+            for (const timeoutId of pendingContentSavesRef.current.values()) {
+                window.clearTimeout(timeoutId);
+            }
+            pendingContentSavesRef.current.clear();
+            return;
+        }
+
+        noteIds.forEach((noteId) => {
+            cancelPendingSave(noteId);
+        });
+    };
+
+    const discardNoteTransientState = (noteIds = null) => {
+        const targetIds = Array.isArray(noteIds) ? [...new Set(noteIds)] : null;
+
+        cancelPendingSaves(targetIds);
+
+        if (!targetIds) {
+            setPendingNotes([]);
+            setLocalDrafts({});
+            setActiveNoteId(null);
+            return;
+        }
+
+        const targetIdSet = new Set(targetIds);
+        setPendingNotes((prev) => prev.filter((note) => !targetIdSet.has(note.id)));
+        setLocalDrafts((prev) => {
+            let changed = false;
+            const next = { ...prev };
+
+            targetIdSet.forEach((noteId) => {
+                if (noteId in next) {
+                    delete next[noteId];
+                    changed = true;
+                }
+            });
+
+            return changed ? next : prev;
+        });
+
+        if (activeNoteId && targetIdSet.has(activeNoteId)) {
+            setActiveNoteId(null);
+        }
+    };
+
     const persistFolder = async (folder, options = {}) => {
         const { errorMessage } = options;
 
@@ -433,6 +490,13 @@ function App() {
         }
 
         if (folder) {
+            const relatedFolderIds = collectDescendantFolderIds(allFolders, folder.id);
+            const relatedNoteIds = allNotesForDisplay
+                .filter((item) => relatedFolderIds.has(item.folderId))
+                .map((item) => item.id);
+
+            discardNoteTransientState(relatedNoteIds);
+
             void deleteFolderRecursive({ folderId: folder.id })
                 .then(() => {
                     if (selectedFolderId === folder.id) {
@@ -655,6 +719,7 @@ function App() {
     };
 
     const handleImportBundle = async (bundle) => {
+        discardNoteTransientState();
         await replaceAll({
             folders: bundle.folders,
             notes: bundle.notes,
@@ -662,12 +727,10 @@ function App() {
 
         setCachedBundle(bundle);
         localStorage.setItem(CACHE_KEY, JSON.stringify(bundle));
-        setLocalDrafts({});
         setPendingFolders([]);
         localStorage.setItem(DRAFTS_KEY, JSON.stringify({}));
 
         setSelectedFolderId(null);
-        setActiveNoteId(null);
         setRenamingId(null);
     };
 

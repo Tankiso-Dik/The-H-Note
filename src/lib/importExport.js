@@ -76,5 +76,20 @@ export const downloadJson = (filename, data) => {
 
 export const parseImportedJsonText = (text) => {
   const parsed = JSON.parse(text);
-  return normalizeDataBundle(parsed);
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Import file must contain a JSON object.');
+  }
+
+  if (!Array.isArray(parsed.folders) || !Array.isArray(parsed.notes)) {
+    throw new Error('Import file must include folders[] and notes[].');
+  }
+
+  const normalized = normalizeDataBundle(parsed);
+
+  if (normalized.folders.length !== parsed.folders.length || normalized.notes.length !== parsed.notes.length) {
+    throw new Error('Import file contains invalid folder or note entries.');
+  }
+
+  return normalized;
 };
