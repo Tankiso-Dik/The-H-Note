@@ -1,114 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { EditorContent } from '@tiptap/react';
 import EditorContextMenu from './EditorContextMenu';
-
-const getEditorPlainText = (editor) => editor?.getText({ blockSeparator: '\n\n' }) || '';
-
-const legacyCopyPlainText = (text) => {
-    if (!document?.body) {
-        return false;
-    }
-
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.top = '-9999px';
-    textarea.style.left = '-9999px';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-
-    const selection = document.getSelection();
-    const savedRanges = [];
-    for (let index = 0; selection && index < selection.rangeCount; index += 1) {
-        savedRanges.push(selection.getRangeAt(index).cloneRange());
-    }
-
-    const activeElement = document.activeElement;
-
-    textarea.focus();
-    textarea.select();
-
-    let didCopy = false;
-    try {
-        didCopy = document.execCommand('copy');
-    } finally {
-        document.body.removeChild(textarea);
-
-        if (selection) {
-            selection.removeAllRanges();
-            savedRanges.forEach((range) => selection.addRange(range));
-        }
-
-        if (activeElement instanceof HTMLElement) {
-            activeElement.focus({ preventScroll: true });
-        }
-    }
-
-    return didCopy;
-};
-
-const legacyCopyContent = ({ text, html }) => {
-    if (typeof document?.execCommand !== 'function') {
-        return false;
-    }
-
-    let didWriteToClipboard = false;
-    const handleCopy = (event) => {
-        const clipboardData = event.clipboardData;
-        if (!clipboardData) {
-            return;
-        }
-
-        event.preventDefault();
-        clipboardData.setData('text/plain', text);
-        if (html) {
-            clipboardData.setData('text/html', html);
-        }
-        didWriteToClipboard = true;
-    };
-
-    document.addEventListener('copy', handleCopy);
-
-    try {
-        const didTriggerCopy = document.execCommand('copy');
-        if (didTriggerCopy && didWriteToClipboard) {
-            return true;
-        }
-    } finally {
-        document.removeEventListener('copy', handleCopy);
-    }
-
-    return legacyCopyPlainText(text);
-};
-
-const writeClipboardContent = async ({ text, html }) => {
-    if (legacyCopyContent({ text, html })) {
-        return;
-    }
-
-    if (navigator.clipboard?.write && window.ClipboardItem && html) {
-        try {
-            const item = new window.ClipboardItem({
-                'text/plain': new Blob([text], { type: 'text/plain' }),
-                'text/html': new Blob([html], { type: 'text/html' }),
-            });
-            await navigator.clipboard.write([item]);
-            return;
-        } catch (error) {
-            if (!navigator.clipboard?.writeText) {
-                throw error;
-            }
-        }
-    }
-
-    if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        return;
-    }
-
-    throw new Error('Clipboard access is unavailable.');
-};
+import {
+    copyEditorSelection,
+    getEditorPlainText,
+    getSelectedEditorClipboardContent,
+    pasteClipboardIntoEditor,
+    writeClipboardContent,
+} from './editorClipboard';
 
 const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) => {
     const [contextMenu, setContextMenu] = useState(null);
@@ -177,6 +76,13 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) 
         }
 
         try {
+            const didCopySelection = await copyEditorSelection(editor);
+
+            if (didCopySelection) {
+                showCopiedState('selection');
+                return;
+            }
+
             await writeClipboardContent({
                 text: getEditorPlainText(editor),
                 html: editor.getHTML(),
@@ -185,6 +91,33 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) 
         } catch (error) {
             console.error(error);
             onStatusMessage?.('Clipboard access is unavailable in this browser.', 'error');
+        }
+    };
+
+    const handleCopySelection = async () => {
+        if (!editor || !getSelectedEditorClipboardContent(editor)) {
+            return;
+        }
+
+        try {
+            await copyEditorSelection(editor);
+            showCopiedState('selection');
+        } catch (error) {
+            console.error(error);
+            onStatusMessage?.('Clipboard access is unavailable in this browser.', 'error');
+        }
+    };
+
+    const handlePaste = async () => {
+        try {
+            const didPaste = await pasteClipboardIntoEditor(editor);
+
+            if (!didPaste) {
+                onStatusMessage?.('Clipboard is empty or unavailable.', 'warning');
+            }
+        } catch (error) {
+            console.error(error);
+            onStatusMessage?.('Clipboard paste needs browser permission.', 'error');
         }
     };
 
@@ -237,11 +170,11 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) 
                     <button
                         className={`canvas-copy-btn document-copy ${isCanvasHovered ? 'visible' : ''}`}
                         onClick={handleCopyDocument}
-                        title={copiedTarget === 'document' ? 'Copied' : 'Copy document'}
-                        aria-label={copiedTarget === 'document' ? 'Copied' : 'Copy document'}
+                        title={copiedTarget === 'selection' ? 'Copied selection' : copiedTarget === 'document' ? 'Copied document' : 'Copy selection or document'}
+                        aria-label={copiedTarget === 'selection' ? 'Copied selection' : copiedTarget === 'document' ? 'Copied document' : 'Copy selection or document'}
                         type="button"
                     >
-                        {copiedTarget === 'document' ? '✓' : '⧉'}
+                        {copiedTarget === 'selection' || copiedTarget === 'document' ? '✓' : '⧉'}
                     </button>
                     <EditorContent editor={editor} />
                 </div>
@@ -252,6 +185,9 @@ const EditorWorkspace = ({ editor, noteTitle, onRenameTitle, onStatusMessage }) 
                     editor={editor}
                     x={contextMenu.x}
                     y={contextMenu.y}
+                    hasSelection={Boolean(getSelectedEditorClipboardContent(editor))}
+                    onCopy={handleCopySelection}
+                    onPaste={handlePaste}
                     onClose={closeContextMenu}
                 />
             )}

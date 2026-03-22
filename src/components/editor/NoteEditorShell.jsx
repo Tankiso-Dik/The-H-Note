@@ -42,6 +42,10 @@ const lowlight = createLowlight(common);
 import EditorWorkspace from './EditorWorkspace';
 import { FontSize } from '../../extensions/FontSize';
 import { plainTextToHtml, readImportedNoteFile } from '../../lib/noteFileIO';
+import {
+    getSelectedEditorClipboardContent,
+    writeClipboardContentToEvent,
+} from './editorClipboard';
 
 const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -263,6 +267,27 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
         editorProps: {
             transformPastedHTML: (html) => normalizePastedHtml(html),
             transformPastedText: (text) => normalizePastedPlainText(text),
+            handleDOMEvents: {
+                copy: (view, event) => {
+                    const content = getSelectedEditorClipboardContent({ state: view.state });
+
+                    if (!content) {
+                        return false;
+                    }
+
+                    return writeClipboardContentToEvent(event, content);
+                },
+                cut: (view, event) => {
+                    const content = getSelectedEditorClipboardContent({ state: view.state });
+
+                    if (!content || !writeClipboardContentToEvent(event, content)) {
+                        return false;
+                    }
+
+                    view.dispatch(view.state.tr.deleteSelection());
+                    return true;
+                },
+            },
             handlePaste: (view, event) => {
                 const clipboardData = event.clipboardData;
 

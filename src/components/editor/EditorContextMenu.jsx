@@ -7,7 +7,7 @@ import {
     runEditorCommand,
 } from './editorActions';
 
-const EditorContextMenu = ({ editor, x, y, onClose }) => {
+const EditorContextMenu = ({ editor, x, y, hasSelection, onCopy, onPaste, onClose }) => {
     const menuRef = useRef(null);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
     const [openSubmenu, setOpenSubmenu] = useState(null);
@@ -33,6 +33,14 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
     const runAndClose = (command) => {
         command?.();
         onClose();
+    };
+
+    const runClipboardAction = async (action, shouldClose = true) => {
+        await action?.();
+
+        if (shouldClose) {
+            onClose();
+        }
     };
 
     useEffect(() => {
@@ -120,6 +128,35 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
                     onClick={() => runAndClose(() => runEditorCommand(editor, 'toggleHighlight', { color: '#ffeb3b' }))}
                     title="Highlight"
                 >🖍️</button>
+            </div>
+
+            <div className="menu-separator" />
+
+            <div className="menu-item-group">
+                <div
+                    className={`menu-item ${!hasSelection ? 'disabled' : ''}`}
+                    onClick={() => {
+                        if (!hasSelection) {
+                            return;
+                        }
+
+                        void runClipboardAction(onCopy);
+                    }}
+                >
+                    <span className="menu-item-icon">⧉</span>
+                    <span className="menu-item-text">Copy</span>
+                    <span className="menu-item-shortcut">Ctrl+C</span>
+                </div>
+                <div
+                    className="menu-item"
+                    onClick={() => {
+                        void runClipboardAction(onPaste);
+                    }}
+                >
+                    <span className="menu-item-icon">📋</span>
+                    <span className="menu-item-text">Paste</span>
+                    <span className="menu-item-shortcut">Ctrl+V</span>
+                </div>
             </div>
 
             <div className="menu-separator" />
@@ -483,6 +520,12 @@ const EditorContextMenu = ({ editor, x, y, onClose }) => {
 
                 .menu-item:hover {
                     background-color: rgba(0, 0, 0, 0.05);
+                }
+
+                .menu-item.disabled {
+                    opacity: 0.45;
+                    cursor: default;
+                    pointer-events: none;
                 }
 
                 [data-theme="dark"] .menu-item:hover {
