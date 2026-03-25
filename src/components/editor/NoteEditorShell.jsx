@@ -415,15 +415,11 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                 // was not considered "meaningful" by the earlier check, let
                 // TipTap's default paste handler deal with it so that rich
                 // formatting (bold, links, etc.) is not discarded.
-                if (!html && looksStructuredPlainText(normalizedText.trim())) {
+                if (!html && looksStructuredPlainText(normalizedText)) {
                     event.preventDefault();
 
-                    if (looksLikeCode(normalizedText.trim())) {
-                        const preHtml = `<pre>${escapeHtml(normalizedText.trim())}</pre>`;
-                        return insertHtmlDirectly(view, preHtml, from, to);
-                    }
-
-                    return insertHtmlDirectly(view, plainTextToHtml(normalizedText), from, to);
+                    const preHtml = `<pre>${escapeHtml(normalizedText)}</pre>`;
+                    return insertHtmlDirectly(view, preHtml, from, to);
                 }
 
                 return false;
