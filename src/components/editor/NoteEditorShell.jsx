@@ -349,6 +349,13 @@ const looksLikeMarkdown = (text) => {
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onStatusMessage, onImportNote }) => {
     const [pendingImport, setPendingImport] = React.useState(null);
+    const [pasteMode, setPasteMode] = React.useState('auto');
+    const pasteModeRef = React.useRef(pasteMode);
+
+    React.useEffect(() => {
+        pasteModeRef.current = pasteMode;
+    }, [pasteMode]);
+
     const editor = useEditor({
         extensions: [
             Document,
@@ -470,6 +477,19 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                 }
 
                 const { from, to } = view.state.selection;
+                const currentPasteMode = pasteModeRef.current;
+
+                if (currentPasteMode === 'html') {
+                    event.preventDefault();
+                    const preHtml = `<pre>${escapeHtml(normalizedText)}</pre>`;
+                    return insertHtmlDirectly(view, preHtml, from, to);
+                }
+
+                if (currentPasteMode === 'markdown') {
+                    event.preventDefault();
+                    const parsedContent = editor.markdown.parse(normalizedText);
+                    return insertHtmlDirectly(view, parsedContent, from, to);
+                }
 
                 if (looksLikeCode(normalizedText)) {
                     event.preventDefault();
@@ -594,6 +614,8 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                     theme={theme}
                     onBack={onBack}
                     onOpenFile={handleOpenFile}
+                    pasteMode={pasteMode}
+                    onPasteModeChange={setPasteMode}
                 />
                 <EditorWorkspace
                     editor={editor}

@@ -17,7 +17,7 @@ const IMPORT_ACCEPT = {
     pdf: '.pdf,application/pdf',
 };
 
-const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenFile }) => {
+const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenFile, pasteMode, onPasteModeChange }) => {
     const [isFileMenuOpen, setIsFileMenuOpen] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
     const fileMenuRef = useRef(null);
@@ -247,6 +247,33 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
                 >
                     <span className="icon">←</span>
                     <span>Back</span>
+                </button>
+            </div>
+
+            <div className="paste-mode-toggle">
+                <button
+                    className={`paste-mode-btn ${pasteMode === 'auto' ? 'active' : ''}`}
+                    onClick={() => onPasteModeChange?.('auto')}
+                    title="Auto-detect paste format"
+                    type="button"
+                >
+                    Auto
+                </button>
+                <button
+                    className={`paste-mode-btn ${pasteMode === 'html' ? 'active' : ''}`}
+                    onClick={() => onPasteModeChange?.('html')}
+                    title="Paste as plain text"
+                    type="button"
+                >
+                    Text
+                </button>
+                <button
+                    className={`paste-mode-btn ${pasteMode === 'markdown' ? 'active' : ''}`}
+                    onClick={() => onPasteModeChange?.('markdown')}
+                    title="Paste as Markdown"
+                    type="button"
+                >
+                    Markdown
                 </button>
             </div>
 
@@ -482,6 +509,46 @@ const EditorRibbon = ({ editor, noteTitle, onToggleTheme, theme, onBack, onOpenF
 
                 .file-panel-anchor {
                     position: relative;
+                }
+
+                .paste-mode-toggle {
+                    display: flex;
+                    gap: 2px;
+                    padding: 4px;
+                    background: var(--panel-bg);
+                    border: 1px solid var(--editor-border);
+                    border-radius: 6px;
+                    height: fit-content;
+                    align-self: center;
+                }
+
+                .paste-mode-btn {
+                    background: transparent;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 4px 8px;
+                    cursor: pointer;
+                    color: inherit;
+                    font-size: 11px;
+                    font-weight: 500;
+                    opacity: 0.7;
+                    transition: all 0.15s;
+                }
+
+                .paste-mode-btn:hover {
+                    opacity: 1;
+                    background: var(--hover-bg);
+                }
+
+                .paste-mode-btn.active {
+                    opacity: 1;
+                    background: var(--accent-bg, #e8f0fe);
+                    color: var(--accent-color, #1a73e8);
+                }
+
+                [data-theme="dark"] .paste-mode-btn.active {
+                    background: rgba(66, 133, 244, 0.2);
+                    color: #8ab4f8;
                 }
 
                 .ribbon-file-btn,
