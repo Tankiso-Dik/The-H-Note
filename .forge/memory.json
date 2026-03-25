@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "decisions": [],
+  "triedAndAbandoned": [],
+  "interpretations": [],
+  "supersededConclusions": [],
+  "notes": [
+    {
+      "id": "note_063ae774-cec5-40bf-9995-e38488df1c7a",
+      "kind": "milestone",
+      "text": "Fixed the editor copy workflow so the document copy button no longer stalls on clipboard permission prompts.",
+      "keywords": [],
+      "scope": "session",
+      "confidence": "medium",
+      "source": "checkpoint",
+      "createdAt": "2026-03-11T20:37:47.497Z",
+      "relatedFiles": [
+        "src/components/editor/EditorWorkspace.jsx"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "note_beee83dd-0879-48c2-9f23-5e33fe214099",
+      "kind": "concern",
+      "text": "The floating editor copy button could hang when clipboard-write permission was in prompt state because it relied on navigator.clipboard.write/writeText first. Resolved by preferring a synchronous execCommand-based copy path that writes text/html where available and falls back to plain-text copy while preserving the previous selection and focus.",
+      "keywords": [
+        "clipboard",
+        "copy",
+        "editor",
+        "permissions"
+      ],
+      "scope": "feature",
+      "confidence": "high",
+      "source": "checkpoint",
+      "createdAt": "2026-03-11T20:37:47.497Z",
+      "relatedFiles": [
+        "src/components/editor/EditorWorkspace.jsx"
+      ],
+      "status": "retired"
+    },
+    {
+      "id": "note_617df92d-e52f-4a18-95c6-1046359b8b26",
+      "kind": "milestone",
+      "text": "Shipped a consistency pass covering note sync races, optimistic rollback, and import integrity validation.",
+      "keywords": [],
+      "scope": "session",
+      "confidence": "medium",
+      "source": "checkpoint",
+      "createdAt": "2026-03-11T20:50:14.426Z",
+      "relatedFiles": [
+        "src/App.jsx",
+        "src/lib/importExport.js",
+        "convex/notes.js"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "note_8e0477e3-e4cf-466f-8515-25d56e3a7e2b",
+      "kind": "milestone",
+      "text": "Hardened note sync and import validation. Note metadata updates now compose against a local latest-note snapshot so delayed autosaves do not overwrite newer title/template edits, failed optimistic note and folder creations roll back instead of lingering locally, and JSON imports are rejected on duplicate IDs, missing folder references, and folder cycles on both client and Convex server paths.",
+      "keywords": [
+        "note-sync",
+        "optimistic-ui",
+        "imports",
+        "convex"
+      ],
+      "scope": "session",
+      "confidence": "high",
+      "source": "checkpoint",
+      "createdAt": "2026-03-11T20:50:14.426Z",
+      "relatedFiles": [
+        "src/App.jsx",
+        "src/lib/importExport.js",
+        "convex/notes.js"
+      ],
+      "status": "active"
+    }
+  ],
+  "issues": [],
+  "session": {
+    "summary": "Fixed the top review risks by unifying local note snapshots for persistence, rolling back failed optimistic creations, and validating import graph integrity on both client and server.",
+    "nextStep": "A useful next pass would be splitting the large App.jsx orchestration into smaller hooks/modules now that the data consistency rules are clearer.",
+    "updatedAt": "2026-03-11T20:50:14.426Z",
+    "previousUpdatedAt": "2026-03-11T20:37:47.497Z"
+  }
+}

@@ -115,16 +115,19 @@ const normalizePastedPlainText = (text) => {
 };
 
 const normalizePastedHtml = (html) => {
-    if (!html) {
-        return html;
-    }
+  if (!html) {
+    return html;
+  }
 
-    return html
-        .replace(ARTIFACT_MARKERS, '')
-        .replace(/<meta[^>]*>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .trim();
+  return html
+    .replace(ARTIFACT_MARKERS, '')
+    .replace(/<meta[^>]*>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Strip inline color styles that conflict with dark mode
+    .replace(/\s*color\s*:\s*[^;"']+[;"']/gi, '')
+    .replace(/\s*background-color\s*:\s*[^;"']+[;"']/gi, '')
+    .trim();
 };
 
 const isTabularText = (text) => {
