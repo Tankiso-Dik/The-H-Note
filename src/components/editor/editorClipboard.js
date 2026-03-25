@@ -1,9 +1,22 @@
 import { DOMSerializer } from '@tiptap/pm/model';
 
-export const getEditorPlainText = (editor) => editor?.getText({ blockSeparator: '\n\n' }) || '';
+const serializeClipboardText = (editor, content) => {
+    const markdownSerializer = editor?.storage?.markdown?.serializer;
 
-const getClipboardContentFromSelection = (state) => {
-    const { selection, doc, schema } = state;
+    if (markdownSerializer && content) {
+        const serialized = markdownSerializer.serialize(content).trim();
+        if (serialized) {
+            return serialized;
+        }
+    }
+
+    return editor?.getText({ blockSeparator: '\n\n' }) || '';
+};
+
+export const getEditorPlainText = (editor) => serializeClipboardText(editor, editor?.state?.doc);
+
+const getClipboardContentFromSelection = (editor) => {
+    const { selection, schema } = editor.state;
 
     if (selection.empty) {
         return null;
@@ -15,7 +28,7 @@ const getClipboardContentFromSelection = (state) => {
     wrapper.appendChild(serializer.serializeFragment(fragment));
 
     return {
-        text: doc.textBetween(selection.from, selection.to, '\n\n') || wrapper.textContent || '',
+        text: serializeClipboardText(editor, fragment) || wrapper.textContent || '',
         html: wrapper.innerHTML,
     };
 };
@@ -25,7 +38,7 @@ export const getSelectedEditorClipboardContent = (editor) => {
         return null;
     }
 
-    return getClipboardContentFromSelection(editor.state);
+    return getClipboardContentFromSelection(editor);
 };
 
 export const writeClipboardContentToEvent = (event, content) => {
