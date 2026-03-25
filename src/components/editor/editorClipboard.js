@@ -3,7 +3,11 @@ import { DOMSerializer } from '@tiptap/pm/model';
 const serializeClipboardText = (editor, content) => {
     if (editor?.markdown && content) {
         try {
-            const serialized = editor.markdown.serialize(content).trim();
+            let contentToSerialize = content;
+            if (typeof content.toJSON === 'function') {
+                contentToSerialize = content.toJSON();
+            }
+            const serialized = editor.markdown.serialize(contentToSerialize).trim();
             if (serialized) {
                 return serialized;
             }
@@ -168,6 +172,32 @@ export const copyEditorSelection = async (editor) => {
     return true;
 };
 
+const MARKDOWN_PATTERNS = [
+    /^#{1,6}\s/m,
+    /^>\s/m,
+    /^```[\s\S]*```/m,
+    /^[-*+]\s/m,
+    /^\d+\.\s/m,
+    /^-\s\[[ xX]\]\s/m,
+    /!\[[^\]]*]\([^)]+\)/,
+    /\[[^\]]+]\([^)]+\)/,
+    /^\|.+\|\s*$/m,
+];
+
+const looksLikeMarkdown = (text) => {
+    if (!text) {
+        return false;
+    }
+
+    const normalized = text.trim();
+
+    if (!normalized) {
+        return false;
+    }
+
+    return MARKDOWN_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
 const readClipboardContent = async () => {
     if (navigator.clipboard?.read) {
         try {
@@ -213,9 +243,16 @@ export const pasteClipboardIntoEditor = async (editor) => {
         return false;
     }
 
+    const normalizedText = content.text.replace(/\r\n?/g, '\n');
+
     if (content.html) {
         return editor.chain().focus().insertContent(content.html).run();
     }
 
-    return editor.chain().focus().insertContent(content.text.replace(/\r\n?/g, '\n')).run();
+    if (editor.markdown && looksLikeMarkdown(normalizedText)) {
+        const parsedContent = editor.markdown.parse(normalizedText);
+        return editor.chain().focus().insertContent(parsedContent).run();
+    }
+
+    return editor.chain().focus().insertContent(normalizedText).run();
 };
