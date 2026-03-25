@@ -404,18 +404,13 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                     return insertHtmlDirectly(view, parsedContent, from, to);
                 }
 
-                if (!html && isTabularText(normalizedText)) {
+                if (isTabularText(normalizedText) && !html) {
                     event.preventDefault();
 
                     return insertHtmlDirectly(view, tabularTextToHtml(normalizedText), from, to);
                 }
 
-                // Only convert structured plain text to HTML when there is
-                // genuinely no HTML on the clipboard. If HTML is present but
-                // was not considered "meaningful" by the earlier check, let
-                // TipTap's default paste handler deal with it so that rich
-                // formatting (bold, links, etc.) is not discarded.
-                if (!html && looksStructuredPlainText(normalizedText)) {
+                if (looksStructuredPlainText(normalizedText)) {
                     event.preventDefault();
 
                     const preHtml = `<pre>${escapeHtml(normalizedText)}</pre>`;
