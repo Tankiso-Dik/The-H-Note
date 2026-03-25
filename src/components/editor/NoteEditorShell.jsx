@@ -234,6 +234,11 @@ const looksLikeCode = (text) => {
         /\bSQL%ROWCOUNT\b/i,
         /;\s*$/m,
         /\/\s*$/m,
+        /\bVARCHAR2\b/i,
+        /\bNUMBER\b/i,
+        /\bDECLARE\b/i,
+        /\bTABLE\s+OF\b/i,
+        /\bCURSOR\b/i,
     ];
 
     let matchCount = 0;
@@ -244,6 +249,80 @@ const looksLikeCode = (text) => {
     }
 
     return matchCount >= 2;
+};
+
+const hasSignificantMarkdownFormatting = (text) => {
+    if (!text) {
+        return false;
+    }
+
+    const lines = text.split('\n').filter((line) => line.trim());
+    if (lines.length < 2) {
+        return false;
+    }
+
+    let markdownLineCount = 0;
+
+    for (const line of lines) {
+        if (/^#{1,6}\s/.test(line)) {
+            markdownLineCount += 2;
+            continue;
+        }
+
+        if (/^[-*+]\s/.test(line) || /^\d+\.\s/.test(line)) {
+            markdownLineCount += 2;
+            continue;
+        }
+
+        if (/^>\s/.test(line)) {
+            markdownLineCount += 2;
+            continue;
+        }
+
+        if (/^```/.test(line)) {
+            markdownLineCount += 2;
+            continue;
+        }
+
+        if (/^\|.+\|/.test(line) && /^\|?[-:]+\|/.test(lines[lines.indexOf(line) + 1] || '')) {
+            markdownLineCount += 3;
+            continue;
+        }
+
+        if (/^[-]\s\[[ xX]\]\s/m.test(line)) {
+            markdownLineCount += 2;
+            continue;
+        }
+    }
+
+    const totalLines = lines.length;
+    const ratio = markdownLineCount / totalLines;
+
+    return ratio >= 0.3;
+};
+
+
+
+const looksStructuredPlainText = (text) => {
+    if (!text) {
+        return false;
+    }
+
+    const lines = text.split('\n').filter((line) => line.trim());
+    if (lines.length < 2) {
+        return false;
+    }
+
+    const hasMultipleBlankLines = /\n{3,}/.test(text);
+
+    const hasIndentation = lines.some((line) => /^\s{2,}/.test(line));
+
+    const hasCodeLikeStructure = lines.some((line) => {
+        const trimmed = line.trim();
+        return /^\w+\s*\(/.test(trimmed) || /^\w+\s*;/.test(trimmed) || /^BEGIN/i.test(trimmed) || /^END/i.test(trimmed);
+    });
+
+    return hasMultipleBlankLines || (hasIndentation && lines.length > 4) || hasCodeLikeStructure;
 };
 
 const looksLikeMarkdown = (text) => {
@@ -263,14 +342,6 @@ const looksLikeMarkdown = (text) => {
 
     return MARKDOWN_PATTERNS.some((pattern) => pattern.test(normalized))
         || MARKDOWN_TABLE_SEPARATOR.test(normalized);
-};
-
-const looksStructuredPlainText = (text) => {
-    if (!text) {
-        return false;
-    }
-
-    return /\n{2,}/.test(text) || /\t/.test(text);
 };
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onStatusMessage, onImportNote }) => {
@@ -396,6 +467,12 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                 }
 
                 const { from, to } = view.state.selection;
+
+                if (looksLikeCode(normalizedText)) {
+                    event.preventDefault();
+                    const preHtml = `<pre>${escapeHtml(normalizedText)}</pre>`;
+                    return insertHtmlDirectly(view, preHtml, from, to);
+                }
 
                 if (looksLikeMarkdown(normalizedText) && !(html && MEANINGFUL_PASTE_HTML.test(html))) {
                     event.preventDefault();
