@@ -487,8 +487,10 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
 
                 if (currentPasteMode === 'markdown') {
                     event.preventDefault();
-                    const parsedContent = editor.storage.markdown.parser.parse(normalizedText);
-                    return insertHtmlDirectly(view, parsedContent, from, to);
+                    const parsedJson = editor.storage.markdown.parser.parse(normalizedText);
+                    const { from, to } = view.state.selection;
+                    editor.chain().focus().deleteRange({ from, to }).insertContent(parsedJson).run();
+                    return true;
                 }
 
                 if (looksLikeCode(normalizedText)) {
@@ -499,9 +501,10 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
 
                 if (looksLikeMarkdown(normalizedText) && !(html && MEANINGFUL_PASTE_HTML.test(html))) {
                     event.preventDefault();
-                    const parsedContent = editor.storage.markdown.parser.parse(normalizedText);
-
-                    return insertHtmlDirectly(view, parsedContent, from, to);
+                    const parsedJson = editor.storage.markdown.parser.parse(normalizedText);
+                    const { from, to } = view.state.selection;
+                    editor.chain().focus().deleteRange({ from, to }).insertContent(parsedJson).run();
+                    return true;
                 }
 
                 if (isTabularText(normalizedText) && !html) {
