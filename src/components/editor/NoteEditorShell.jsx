@@ -213,6 +213,39 @@ const tabularTextToHtml = (text) => {
     return `<table><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
 };
 
+const looksLikeCode = (text) => {
+    if (!text) {
+        return false;
+    }
+
+    const codeIndicators = [
+        /\bBEGIN\b/i,
+        /\bEND\b/i,
+        /\bDECLARE\b/i,
+        /\bPROCEDURE\b/i,
+        /\bFUNCTION\b/i,
+        /\bINSERT\s+INTO\b/i,
+        /\bUPDATE\s+SET\b/i,
+        /\bDELETE\s+FROM\b/i,
+        /\bSELECT\s+.*\s+INTO\b/i,
+        /\bIF\s+.*\s+THEN\b/i,
+        /\bFOR\s+.*\s+IN\b/i,
+        /\bLOOP\b/i,
+        /\bSQL%ROWCOUNT\b/i,
+        /;\s*$/m,
+        /\/\s*$/m,
+    ];
+
+    let matchCount = 0;
+    for (const pattern of codeIndicators) {
+        if (pattern.test(text)) {
+            matchCount += 1;
+        }
+    }
+
+    return matchCount >= 2;
+};
+
 const looksLikeMarkdown = (text) => {
     if (!text) {
         return false;
@@ -221,6 +254,10 @@ const looksLikeMarkdown = (text) => {
     const normalized = text.trim();
 
     if (!normalized) {
+        return false;
+    }
+
+    if (looksLikeCode(normalized)) {
         return false;
     }
 
@@ -380,6 +417,11 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                 // formatting (bold, links, etc.) is not discarded.
                 if (!html && looksStructuredPlainText(normalizedText.trim())) {
                     event.preventDefault();
+
+                    if (looksLikeCode(normalizedText.trim())) {
+                        const preHtml = `<pre>${escapeHtml(normalizedText.trim())}</pre>`;
+                        return insertHtmlDirectly(view, preHtml, from, to);
+                    }
 
                     return insertHtmlDirectly(view, plainTextToHtml(normalizedText), from, to);
                 }
