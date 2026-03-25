@@ -315,14 +315,14 @@ const looksStructuredPlainText = (text) => {
 
     const hasMultipleBlankLines = /\n{3,}/.test(text);
 
-    const hasIndentation = lines.some((line) => /^\s{2,}/.test(line));
+    const hasSignificantIndentation = lines.filter((line) => /^\s{4,}/.test(line)).length >= 2;
 
-    const hasCodeLikeStructure = lines.some((line) => {
+    const hasCodeLikeStructure = lines.filter((line) => {
         const trimmed = line.trim();
-        return /^\w+\s*\(/.test(trimmed) || /^\w+\s*;/.test(trimmed) || /^BEGIN/i.test(trimmed) || /^END/i.test(trimmed);
-    });
+        return /^\w+\s*\(/.test(trimmed) || /;\s*$/.test(trimmed) || /^BEGIN\b/i.test(trimmed) || /^END\b/i.test(trimmed) || /^\/\s*$/.test(trimmed);
+    }).length >= 2;
 
-    return hasMultipleBlankLines || (hasIndentation && lines.length > 4) || hasCodeLikeStructure;
+    return hasMultipleBlankLines || hasSignificantIndentation || hasCodeLikeStructure;
 };
 
 const looksLikeMarkdown = (text) => {
@@ -340,8 +340,11 @@ const looksLikeMarkdown = (text) => {
         return false;
     }
 
-    return MARKDOWN_PATTERNS.some((pattern) => pattern.test(normalized))
-        || MARKDOWN_TABLE_SEPARATOR.test(normalized);
+    if (hasSignificantMarkdownFormatting(normalized)) {
+        return true;
+    }
+
+    return MARKDOWN_TABLE_SEPARATOR.test(normalized);
 };
 
 const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onStatusMessage, onImportNote }) => {
