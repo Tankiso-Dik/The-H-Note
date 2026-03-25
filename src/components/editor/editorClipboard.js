@@ -1,4 +1,23 @@
-import { DOMSerializer } from '@tiptap/pm/model';
+import { DOMSerializer, DOMParser as PMDOMParser } from '@tiptap/pm/model';
+
+/**
+ * Insert an HTML string into the editor at the current selection,
+ * using ProseMirror's DOMParser directly.
+ *
+ * This bypasses tiptap-markdown's overridden `insertContentAt` command,
+ * which re-parses any HTML string through markdown-it — treating it as
+ * Markdown source rather than markup, and destroying rich formatting.
+ */
+const insertHtmlViaDispatch = (editor, html) => {
+    const { view } = editor;
+    const element = document.createElement('div');
+    element.innerHTML = html;
+    const slice = PMDOMParser.fromSchema(view.state.schema).parseSlice(element, {
+        preserveWhitespace: true,
+    });
+    view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView());
+    view.focus();
+};
 
 const serializeClipboardText = (editor, content) => {
     if (editor?.markdown && content) {
@@ -245,14 +264,33 @@ export const pasteClipboardIntoEditor = async (editor) => {
 
     const normalizedText = content.text.replace(/\r\n?/g, '\n');
 
+    // Prefer the HTML representation — parse it directly with ProseMirror's
+    // DOMParser so tiptap-markdown never sees the HTML string and cannot
+    // re-interpret it as Markdown source (which it does via its overridden
+    // `insertContentAt` command).
     if (content.html) {
-        return editor.chain().focus().insertContent(content.html).run();
+        insertHtmlViaDispatch(editor, content.html);
+        return true;
     }
 
+    // Plain Markdown text — run it through the Markdown parser once to get
+    // HTML, then insert via ProseMirror directly (avoids the double-parse
+    // that would occur if we called insertContent with the returned HTML).
     if (editor.markdown && looksLikeMarkdown(normalizedText)) {
-        const parsedContent = editor.markdown.parse(normalizedText);
-        return editor.chain().focus().insertContent(parsedContent).run();
+        const parsedHtml = editor.markdown.parse(normalizedText);
+        insertHtmlViaDispatch(editor, parsedHtml);
+        return true;
     }
 
-    return editor.chain().focus().insertContent(normalizedText).run();
+    // Plain text fallback — use insertText so tiptap-markdown's Markdown
+    // parser is never invoked on this path either.
+    const { view } = editor;
+    const { selection } = view.state;
+    view.dispatch(
+        view.state.tr
+            .insertText(normalizedText, selection.from, selection.to)
+            .scrollIntoView()
+    );
+    view.focus();
+    return true;
 };

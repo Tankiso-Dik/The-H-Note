@@ -1,5 +1,7 @@
 import React from 'react';
 import { useEditor } from '@tiptap/react';
+import { DOMParser } from '@tiptap/pm/model';
+import { Slice } from '@tiptap/pm/model';
 import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
@@ -54,6 +56,19 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
     reader.readAsDataURL(file);
 });
 
+const insertHtmlDirectly = (view, html, from, to) => {
+    const schema = view.state.schema;
+    const parser = DOMParser.fromSchema(schema);
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: true });
+
+    const tr = view.state.tr.replaceRange(from, to, slice);
+    view.dispatch(tr);
+    return true;
+};
+
 const insertImageFiles = async (editor, files, pos = null) => {
     const imageFiles = files.filter((file) => file.type.startsWith('image/'));
     if (imageFiles.length === 0) {
@@ -74,6 +89,37 @@ const insertImageFiles = async (editor, files, pos = null) => {
     }
 
     editor.chain().focus().insertContent(imageNodes).run();
+};
+
+let editorSchema = null;
+const getEditorSchema = () => {
+    if (editorSchema) {
+        return editorSchema;
+    }
+    const tempEditor = document.createElement('div');
+    tempEditor.innerHTML = '<p></p>';
+    const parser = new DOMParser();
+    const schema = parser.parseDOM(tempEditor).schema;
+    editorSchema = schema;
+    return schema;
+};
+
+const parseHtmlToProseMirrorJson = (html) => {
+    if (!html || typeof html !== 'string') {
+        return null;
+    }
+
+    try {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        const parser = DOMParser.fromSchema(getEditorSchema());
+        const doc = parser.parse(tempDiv);
+
+        return doc.toJSON();
+    } catch (e) {
+        return null;
+    }
 };
 
 const MARKDOWN_PATTERNS = [
@@ -104,14 +150,14 @@ const normalizePastedPlainText = (text) => {
         return '';
     }
 
+    // Only normalise line endings and strip invisible zero-width characters.
+    // Do NOT strip trailing whitespace from lines, collapse blank lines, or
+    // trim the string – doing so loses intentional indentation and paragraph
+    // spacing that the user expects to be preserved after a paste.
     return text
         .replace(/\r\n?/g, '\n')
-        .replace(/\u00A0/g, ' ')
         .replace(/\u200B/g, '')
-        .replace(ARTIFACT_MARKERS, '')
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+        .replace(ARTIFACT_MARKERS, '');
 };
 
 const normalizePastedHtml = (html) => {
@@ -124,9 +170,10 @@ const normalizePastedHtml = (html) => {
     .replace(/<meta[^>]*>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    // Strip inline color styles that conflict with dark mode
-    .replace(/\s*color\s*:\s*[^;"']+[;"']/gi, '')
-    .replace(/\s*background-color\s*:\s*[^;"']+[;"']/gi, '')
+    // Strip background-color only – foreground color is intentional and
+    // should be preserved. The old regex also matched "color" which wiped
+    // out all text colour information from rich-text sources.
+    .replace(/\s*background(?:-color)?\s*:\s*[^;"']+[;"']/gi, '')
     .trim();
 };
 
@@ -261,7 +308,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                 transformPastedText: false,
             }),
         ],
-        content: note ? note.content : '',
+        content: '',
         onUpdate: ({ editor }) => {
             if (note) {
                 onUpdateNote(note.id, { content: editor.getHTML() });
@@ -317,34 +364,24 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
                     event.preventDefault();
                     const parsedContent = editor.storage.markdown.parser.parse(normalizedText);
 
-                    return editor
-                        .chain()
-                        .focus()
-                        .deleteRange({ from, to })
-                        .insertContent(parsedContent)
-                        .run();
+                    return insertHtmlDirectly(view, parsedContent, from, to);
                 }
 
                 if (!html && isTabularText(normalizedText)) {
                     event.preventDefault();
 
-                    return editor
-                        .chain()
-                        .focus()
-                        .deleteRange({ from, to })
-                        .insertContent(tabularTextToHtml(normalizedText))
-                        .run();
+                    return insertHtmlDirectly(view, tabularTextToHtml(normalizedText), from, to);
                 }
 
-                if (!html && looksStructuredPlainText(normalizedText)) {
+                // Only convert structured plain text to HTML when there is
+                // genuinely no HTML on the clipboard. If HTML is present but
+                // was not considered "meaningful" by the earlier check, let
+                // TipTap's default paste handler deal with it so that rich
+                // formatting (bold, links, etc.) is not discarded.
+                if (!html && looksStructuredPlainText(normalizedText.trim())) {
                     event.preventDefault();
 
-                    return editor
-                        .chain()
-                        .focus()
-                        .deleteRange({ from, to })
-                        .insertContent(plainTextToHtml(normalizedText))
-                        .run();
+                    return insertHtmlDirectly(view, plainTextToHtml(normalizedText), from, to);
                 }
 
                 return false;
@@ -359,6 +396,15 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
             }
             if (savedFontSize) {
                 editor.chain().setMark('textStyle', { fontSize: `${savedFontSize}pt` }).run();
+            }
+
+            if (note?.content) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = note.content;
+                const parser = DOMParser.fromSchema(editor.schema);
+                const doc = parser.parse(tempDiv);
+                const tr = editor.state.tr.replaceWith(0, 0, doc.content);
+                editor.view.dispatch(tr);
             }
         },
     }, [note?.id]); // Re-initialize or sync when note ID changes
