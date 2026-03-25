@@ -1,12 +1,13 @@
 import { DOMSerializer } from '@tiptap/pm/model';
 
 const serializeClipboardText = (editor, content) => {
-    const markdownSerializer = editor?.storage?.markdown?.serializer;
-
-    if (markdownSerializer && content) {
-        const serialized = markdownSerializer.serialize(content).trim();
-        if (serialized) {
-            return serialized;
+    if (editor?.markdown && content) {
+        try {
+            const serialized = editor.markdown.serialize(content).trim();
+            if (serialized) {
+                return serialized;
+            }
+        } catch (e) {
         }
     }
 
