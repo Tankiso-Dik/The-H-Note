@@ -487,7 +487,7 @@ const NoteEditorShell = ({ note, onUpdateNote, onBack, theme, onToggleTheme, onS
 
                 if (currentPasteMode === 'markdown') {
                     event.preventDefault();
-                    const parsedContent = editor.markdown.parse(normalizedText);
+                    const parsedContent = editor.storage.markdown.parser.parse(normalizedText);
                     return insertHtmlDirectly(view, parsedContent, from, to);
                 }
 
